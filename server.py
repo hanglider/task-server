@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import asyncio
 from asgiref.wsgi import WsgiToAsgi
 from taskprocessor import TaskProcessor
@@ -11,6 +11,16 @@ async def receive_task():
     asyncio.create_task(process_task())
     
     return jsonify({"response": "The task has started to be processed."}), 202
+
+@app.route('/upload_task', methods=['POST'])
+async def receive_file():
+    data = request.files  # Получаем данные из POST-запроса
+    print(f"Получено сообщение: {data['key']}, Тип: {type(data['key'])}")     
+
+    #TODO: save file to server
+
+
+    return jsonify({'response': 'Сообщение получено!'})  # Возвращаем ответ клиенту
 
 async def process_task():
     num_splits = 2
@@ -28,4 +38,4 @@ asgi_app = WsgiToAsgi(app)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(asgi_app, host='192.168.1.122', port=5000)
+    uvicorn.run(asgi_app, host='192.168.1.102', port=5000)
