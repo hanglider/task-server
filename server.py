@@ -15,7 +15,11 @@ async def receive_task():
 @app.route('/upload_task', methods=['POST'])
 async def receive_file():
     data = request.files  # Получаем данные из POST-запроса
-    print(f"Получено сообщение: {data['key']}, Тип: {type(data['key'])}")     
+    print(f"Получено сообщение: {data['key']}, {data}")
+    data['key'].save('task.txt') 
+
+
+    #request.files    
 
     #TODO: save file to server
 
@@ -38,4 +42,4 @@ asgi_app = WsgiToAsgi(app)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(asgi_app, host='192.168.1.102', port=5000)
+    uvicorn.run(asgi_app, host='172.20.10.3', port=5000)
