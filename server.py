@@ -33,9 +33,33 @@ async def process_task():
     print(len(results))
     #TODO: send results to the main node
 
+def send_response(main_server_ip):
+    file = 'task.py'
+    url = f"http://{main_server_ip}:5000/message'"
+    try:
+        f = open("task.py")
+       # data = request.files()
+        response = request.post(url)
+    except:
+        pass
 
+    # url = f'http://{server_ip}:5000/message'
+    # data = {'message': message}
+    # crop = [{0:500, 0:500}, {500:1000, 500:1000}]
+    # data['message'] = crop[index]
+    # try:
+    #     response = requests.post(url, json=data)
+    #     if response.status_code == 200:
+    #         print(f"Ответ от сервера: {response.json()['response']}")
+    #     else:
+    #         print(f"Ошибка сервера: {response.status_code}")
+    # except Exception as e:
+    #     print(f"Ошибка подключения: {e}")
+
+def send_message():
+    pass
 asgi_app = WsgiToAsgi(app)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(asgi_app, host='192.168.1.102', port=5000)
+    uvicorn.run(asgi_app, host='172.20.10.2', port=5000)
