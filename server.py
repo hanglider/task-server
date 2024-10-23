@@ -15,15 +15,9 @@ async def receive_task():
 @app.route('/upload_task', methods=['POST'])
 async def receive_file():
     data = request.files  # Получаем данные из POST-запроса
-    print(f"Получено сообщение: {data['key']}, {data}")
-    data['key'].save('task.txt') 
-
-
-    #request.files    
-
-    #TODO: save file to server
-
-
+    print(f"Получено сообщение: {data['task']}, {data['data']}")
+    data['data'].save(f'incomming/data.{data['data'].filename.split('.')[1]}') 
+    data['task'].save('incomming/task.py') 
     return jsonify({'response': 'Сообщение получено!'})  # Возвращаем ответ клиенту
 
 async def process_task():
@@ -37,9 +31,29 @@ async def process_task():
     print(len(results))
     #TODO: send results to the main node
 
+def send_response(main_server_ip):
+    url = f"http://{main_server_ip}:5000/message"  
+
+    try:
+        f=open("task.py") 
+        message = "Файл успешно открыт"
+        response = request.post(url, data={'message': message})
+        if response.status_code == 200:
+            print("Сообщение об успешном открытии файла отправлено на сервер.")
+        else:
+            print(f"Не удалось отправить сообщение. Код ответа: {response.status_code}")
+
+    except Exception as e:
+        message = "ХУЙХУЕНЫШ"
+        response = request.post(url, data={'message': message})
+
 
 asgi_app = WsgiToAsgi(app)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(asgi_app, host='172.20.10.3', port=5000)
+    import socket
+    name = socket.gethostname()
+    host = socket.gethostbyname(name)
+    uvicorn.run(asgi_app, host=host, port=5000)
+    send_response(host)
