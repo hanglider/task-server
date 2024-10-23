@@ -15,15 +15,9 @@ async def receive_task():
 @app.route('/upload_task', methods=['POST'])
 async def receive_file():
     data = request.files  # Получаем данные из POST-запроса
-    print(f"Получено сообщение: {data['key']}, {data}")
-    data['key'].save('task.txt') 
-
-
-    #request.files    
-
-    #TODO: save file to server
-
-
+    print(f"Получено сообщение: {data['task']}, {data['data']}")
+    data['data'].save(f'incomming/data.{data['data'].filename.split('.')[1]}') 
+    data['task'].save('incomming/task.py') 
     return jsonify({'response': 'Сообщение получено!'})  # Возвращаем ответ клиенту
 
 async def process_task():
@@ -37,33 +31,14 @@ async def process_task():
     print(len(results))
     #TODO: send results to the main node
 
-def send_response(main_server_ip):
-    file = 'task.py'
-    url = f"http://{main_server_ip}:5000/message'"
-    try:
-        f = open("task.py")
-       # data = request.files()
-        response = request.post(url)
-    except:
-        pass
-
-    # url = f'http://{server_ip}:5000/message'
-    # data = {'message': message}
-    # crop = [{0:500, 0:500}, {500:1000, 500:1000}]
-    # data['message'] = crop[index]
-    # try:
-    #     response = requests.post(url, json=data)
-    #     if response.status_code == 200:
-    #         print(f"Ответ от сервера: {response.json()['response']}")
-    #     else:
-    #         print(f"Ошибка сервера: {response.status_code}")
-    # except Exception as e:
-    #     print(f"Ошибка подключения: {e}")
-
 def send_message():
     pass
 asgi_app = WsgiToAsgi(app)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(asgi_app, host='172.20.10.3', port=5000)
+    import socket
+    name = socket.gethostname()
+    host = socket.gethostbyname(name)
+    uvicorn.run(asgi_app, host=host, port=5000)
+    send_response(host)
