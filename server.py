@@ -31,23 +31,8 @@ async def process_task():
     print(len(results))
     #TODO: send results to the main node
 
-def send_response(main_server_ip):
-    url = f"http://{main_server_ip}:5000/message"  
-
-    try:
-        f=open("task.py") 
-        message = "Файл успешно открыт"
-        response = request.post(url, data={'message': message})
-        if response.status_code == 200:
-            print("Сообщение об успешном открытии файла отправлено на сервер.")
-        else:
-            print(f"Не удалось отправить сообщение. Код ответа: {response.status_code}")
-
-    except Exception as e:
-        message = "ХУЙХУЕНЫШ"
-        response = request.post(url, data={'message': message})
-
-
+def send_message():
+    pass
 asgi_app = WsgiToAsgi(app)
 
 if __name__ == "__main__":
