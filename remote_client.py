@@ -19,5 +19,8 @@ async def main(server_ip):
 asyncio.run(main(main_host))
 print(f'отправлено на {main_host}')
 
+# C:\Users\25583\Downloads\Telegram Desktop\negr.jpg
+# Z:\Korhov\task-server\mytask.py
+
 
 

@@ -41,7 +41,7 @@ async def main(image_part):
 
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
-        object_stats.append({'coordinates': (x, y + offset_y), 'size': (w, h)})
+        object_stats.append({'coordinates': x, 'size': w})
     
     return object_stats
 
