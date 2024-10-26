@@ -2,7 +2,6 @@ from flask import Flask, jsonify, request
 import asyncio
 from asgiref.wsgi import WsgiToAsgi
 from taskprocessor import TaskProcessor
-import mytask
 import aiohttp
 import os
 
@@ -10,6 +9,9 @@ app = Flask(__name__)
 
 all_results = []
 num_splits = 1  # Количество частей, на которые была разделена задача
+
+received_file_index = 0
+
 
 # output_dir = 'output/'
 # output_file = os.path.join(output_dir, 'merged_output.txt')
@@ -20,7 +22,7 @@ def merge_results(task_parts):
         merged_result += part
     return merged_result
 
-slave_hosts = ['192.168.1.107:5001']
+slave_hosts = ['192.168.206.54:5001']
 
 @app.route("/task", methods=['POST', 'GET'])
 async def receive_task():
@@ -52,7 +54,6 @@ async def main_receive_files():
 
     tasks = []   
     if len(responses) == num_splits:
-        print("HUY")
         index = 0
         for host in slave_hosts:
             task = asyncio.create_task(start_task(host, index))
@@ -106,36 +107,18 @@ async def process_task(index_part):
     task_processor.add_task(main, image_parts[index_part])
     results = await task_processor.run_all_tasks()
     print(len(results))
+    
     # TODO: send results to the main node
-    task_send_results = asyncio.create_task(send_results('192.168.1.107:5000', results))
+    task_send_results = asyncio.create_task(send_results('192.168.206.54:5000', results))
     await task_send_results
 
     print(f"Processed {len(results)} results")
 
-# def merge_results(image_parts, image_height):
-#     import numpy as np
-#     merged_image = np.zeros((image_height, image_parts[0].shape[1]), dtype=np.uint8)
-
-#     y_offset = 0
-#     for part in image_parts:
-#         merged_image[y_offset:y_offset + part.shape[0], :] = part
-#         y_offset += part.shape[0]
-    
-#     return merged_image
-
-# @app.route('/results', methods=['POST'])
-# async def receive_results():
-#     data = await request.get_json()
-#     print(f"Received processed data: {data}")
-#     return jsonify({'response': 'Results received'}), 200
-
 @app.route('/results', methods=['POST'])
 async def receive_results():
-    data = request.get_data()
-    all_results.append(data)
-
-    print(data.decode())
-
+    data = request.files
+    os.makedirs("output", exist_ok=True)
+    data['results'].save("output/results.txt")
     # if len(all_results) == num_splits:
 
     #     os.makedirs('output', exist_ok=True)
@@ -154,12 +137,15 @@ async def receive_results():
     return jsonify({'response': 'Results received'}), 200
 
 async def send_results(host, results):
-    print("pidaras")
     url = f'http://{host}/results'
-    str_results = f'{results}'
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, data={'results': results}) as response:
-            return await response.read()
+
+    with open('results.txt', 'w') as rf:
+        rf.write(f'{results}')
+
+    with open('results.txt', 'rb') as rf:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data={'results': rf}) as response:
+                return await response.read()
 
 
 asgi_app = WsgiToAsgi(app)
@@ -169,4 +155,5 @@ if __name__ == "__main__":
     import socket
     name = socket.gethostname()
     host = socket.gethostbyname(name)
-    uvicorn.run(asgi_app, host='192.168.1.107', port=5000)
+    uvicorn.run(asgi_app, host='192.168.206.54', port=5000)
+

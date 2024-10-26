@@ -1,8 +1,7 @@
 import asyncio
 import aiohttp
-import time
 
-main_host = '192.168.1.107'
+main_host = '192.168.206.54'
 
 async def main(server_ip):
     task_path = str(input('Введите путь к исполняемому файлу: '))
@@ -19,8 +18,9 @@ async def main(server_ip):
 asyncio.run(main(main_host))
 print(f'отправлено на {main_host}')
 
-# C:\Users\25583\Downloads\Telegram Desktop\negr.jpg
-# Z:\Korhov\task-server\mytask.py
+
+# C:\Users\zvnlxn\IT\mytask.py
+# C:\Users\zvnlxn\IT\jasur\2nd\output_images\image3.jpg
 
 
 
