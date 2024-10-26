@@ -156,4 +156,3 @@ if __name__ == "__main__":
     name = socket.gethostname()
     host = socket.gethostbyname(name)
     uvicorn.run(asgi_app, host='192.168.206.54', port=5000)
-
