@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 import asyncio
 from asgiref.wsgi import WsgiToAsgi
-from taskprocessor import TaskProcessor
+from server.taskprocessor import TaskProcessor
 import aiohttp
 import os
 
