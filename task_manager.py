@@ -3,7 +3,6 @@ import asyncio
 import aiohttp
 from file_manager import save_file, merge_results
 from taskprocessor import TaskProcessor
-import time as t
 
 class TaskManager:
     def __init__(self):
@@ -18,13 +17,12 @@ class TaskManager:
         await self.send_results('192.168.1.107:5000', results)
 
     async def handle_main_file_upload(self, files):
-        # os.makedirs("incomming", exist_ok=True)
-        # print(f"{t.time()}")
-        # save_file(files['data'], f'incomming/data.{files['data'].filename.split('.')[1]}')
-        # save_file(files['task'], "incomming/mytask.py")
-        await asyncio.sleep(7)
-        # await self.distribute_files_to_slaves(files['data'].filename.split('.')[1])
-        # await self.start_tasks_on_slaves()
+        os.makedirs("incomming", exist_ok=True)
+        print(f"{t.time()}")
+        save_file(files['data'], f'incomming/data.{files['data'].filename.split('.')[1]}')
+        save_file(files['task'], "incomming/mytask.py")
+        await self.distribute_files_to_slaves(files['data'].filename.split('.')[1])
+        await self.start_tasks_on_slaves()
         return {'response': 'Main received files.'}
     
     async def handle_slave_file_upload(self, files):
