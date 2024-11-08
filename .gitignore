@@ -163,3 +163,4 @@ test*
 test*/
 incomming/
 output/
+.obsidian
