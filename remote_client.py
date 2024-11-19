@@ -2,10 +2,10 @@ import asyncio
 import aiohttp
 import time
 
-async def send_files(url, task, data, index):
+async def send_files(url, task, data):
     form_data = aiohttp.FormData()
-    form_data.add_field('files', task, filename=f'task{index}.py', content_type='application/octet-stream')
-    form_data.add_field('files', data, filename=f'data{index}.jpg', content_type='application/octet-stream')
+    form_data.add_field('files', task, filename=f'task.py', content_type='application/octet-stream')
+    form_data.add_field('files', data, filename=f'data.jpg', content_type='application/octet-stream')
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url, data=form_data) as response:
@@ -14,6 +14,8 @@ async def send_files(url, task, data, index):
 async def main():
     task_path = str(input('Введите путь к исполняемому файлу: '))
     data_path = str(input('Введите путь к файлу c данными: '))
+    task_path = r"Z:\Korhov\task-server\mytask.py"
+    data_path = r"Z:\Korhov\task-server\test_negr.jpg"
 
     with open(task_path, 'rb') as task_file, open(data_path, 'rb') as data_file:
         task = task_file.read()
@@ -27,18 +29,21 @@ async def main():
 
         start_time = time.time()
         
-        tasks = []
-        for i in range(len(urls)):
-            tasks.append(send_files(urls[i], task, data, i))
+        # tasks = []
+        # for i in range(len(urls)):
+        #     tasks.append(send_files(urls[i], task, data))
         
-        results = await asyncio.gather(*tasks)
+        # results = await asyncio.gather(*tasks)
+        await send_files(urls[0], task, data)
+        await send_files(urls[1], task, data)
+        await send_files(urls[2], task, data)
         end_time = time.time()
-        
+
         elapsed_time = end_time - start_time
         print('Elapsed time: ', elapsed_time)
         
-        for result in results:
-            print(result)
+        # for result in results:
+        #     print(result)
 
 asyncio.run(main())
 
