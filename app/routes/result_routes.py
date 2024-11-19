@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from app.tasks.task_manager import task_manager
-from app.tasks.task_processing import distribute_files_to_slaves
+from tasks.task_manager import task_manager
+from tasks.task_processing import distribute_files_to_slaves
 import asyncio
 
 router = APIRouter()

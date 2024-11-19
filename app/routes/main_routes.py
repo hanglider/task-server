@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.tasks.task_manager import task_manager
-from app.utils.file_utils import save_uploaded_files
-from app.tasks.task_processing import distribute_files_to_slaves
+from tasks.task_manager import task_manager
+from utils.file_utils import save_uploaded_files
+from tasks.task_processing import distribute_files_to_slaves
 import asyncio
 import os
 from typing import List

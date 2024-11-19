@@ -1,6 +1,6 @@
 import asyncio
 import aiohttp
-from app.tasks.task_manager import task_manager
+from tasks.task_manager import task_manager
 
 class TaskProcessor:
     """

@@ -1,4 +1,4 @@
-from app.routes import main_routes, slave_routes, result_routes
+from routes import main_routes, slave_routes, result_routes
 import os
 import uvicorn
 from fastapi import FastAPI
