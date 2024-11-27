@@ -65,6 +65,7 @@ class TaskProcessor:
 
 async def distribute_files_to_slaves(url: str):
     print("Sending files to slaves")
+    #TODO: отправить ссылки из task_manager.queue на хост
     if not task_manager.queue["tasks"] or not task_manager.queue["datas"]:
         return
 
@@ -81,6 +82,5 @@ async def distribute_files_to_slaves(url: str):
 
 
 async def process_task():
-    await asyncio.sleep(5)
-    # TODO: process_task with taskprocessor
+    await asyncio.sleep(10)
     print("Task processed")
