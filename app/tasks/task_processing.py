@@ -1,6 +1,8 @@
 import asyncio
+import os
 import aiohttp
 from tasks.task_manager import task_manager
+from utils.network_utils import notify_main_server
 
 class TaskProcessor:
     """
@@ -45,25 +47,34 @@ class TaskProcessor:
         # asyncio.run(main())
     """
         
-    def __init__(self, timeout : 10):
+    def __init__(self, timeout: int = 10):
         self.tasks = []
         self.timeout = timeout
 
     def add_task(self, func, *args, **kwargs):
+        """Add a new async task to the processor."""
         task = asyncio.create_task(func(*args, **kwargs))
         self.tasks.append(task)
 
     async def run_all_tasks(self):
-        results = []
+        """Run all tasks concurrently and wait for completion."""
         done, pending = await asyncio.wait(self.tasks, timeout=self.timeout)
+
+        results = []
         for future in done:
-            value = future.result()
-            results.append(value)
-        if len(pending) != 0:
-            raise TimeoutError("The task has been running for too long")
+            try:
+                results.append(await future)
+            except Exception as e:
+                print(f"Task failed with error: {e}")
+
+        if pending:
+            for task in pending:
+                task.cancel()
+            raise TimeoutError("Some tasks did not complete within the timeout period.")
+        
         return results
 
-async def distribute_files_to_slaves(url: str):
+async def distribute_files_to_slaves():
     print("Sending files to slaves")
     #TODO: отправить ссылки из task_manager.queue на хост
     if not task_manager.queue["tasks"] or not task_manager.queue["datas"]:
@@ -77,10 +88,26 @@ async def distribute_files_to_slaves(url: str):
     form_data.add_field('files', open(data_file, 'rb'), filename=data_file, content_type='application/octet-stream')
 
     async with aiohttp.ClientSession() as session:
-        async with session.post(f"http://{url}/slave_upload_files", data=form_data) as response:
+        async with session.post(f"http://{task_manager.available_hosts.pop(0)}/slave_upload_files", data=form_data) as response:
             print(await response.json())
 
 
-async def process_task():
-    await asyncio.sleep(10)
-    print("Task processed")
+async def process_task(dir: str = "incoming"):
+    from test_incoming import task
+
+    processor = TaskProcessor(timeout=10)
+
+    for filename in os.listdir(f"app\{dir}"):
+        filepath = os.path.join(f"app\{dir}", filename)
+        if os.path.isfile(filepath):
+            if "data" in filepath:
+                print(f"data path: {filepath}")
+                processor.add_task(task.main, task.load_image(filepath, 1)[0]) #TODO: figure out which part of the image we need to process
+
+    try:
+        results = await processor.run_all_tasks()
+        for i, result in enumerate(results):
+            task_id = f"task_{i + 1}"   #TODO: change task_id in respect to it's position in database
+            await notify_main_server("http://192.168.1.107:5000/task_completed", task_id, f"{result}")  #TODO: somehow get main_server_url from outside 
+    except TimeoutError as e:
+        print("Error processing tasks:", e)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from tasks.task_manager import task_manager
 from tasks.task_processing import distribute_files_to_slaves
@@ -7,16 +7,32 @@ import asyncio
 router = APIRouter()
 
 
-class StringRequest(BaseModel):
-    content: str
+class TaskResult(BaseModel):
+    task_id: str
+    result: str
+    slave_ip: str
 
+@router.post('/task_completed')
+async def task_completed(task_result: TaskResult):
+    """
+    Endpoint to receive notifications from slave nodes when a task is completed.
 
-@router.post('/results')
-async def receive_results(request: StringRequest):
-    task_manager.available_hosts.append('192.168.1.107:5001')
-    print(f"Received message: {request.content}")
+    Args:
+        task_result (TaskResult): Contains the task ID, result, and slave node IP.
 
-    if task_manager.queue["tasks"] and task_manager.available_hosts:
-        asyncio.create_task(distribute_files_to_slaves(task_manager.available_hosts.pop(0)))
+    Returns:
+        dict: A success message.
+    """
+    print(f"Task {task_result.task_id} completed by slave {task_result.slave_ip} with result: {task_result.result}")
 
-    return {"response": "Results received"}
+    if not task_result.result:
+        raise HTTPException(status_code=400, detail="Result cannot be empty")
+    if not task_result.slave_ip:
+        raise HTTPException(status_code=400, detail="Slave IP cannot be empty")
+
+    task_manager.available_hosts.append(task_result.slave_ip)
+
+    if task_manager.available_hosts:
+        asyncio.create_task(distribute_files_to_slaves())
+
+    return {"message": f"Task {task_result.task_id} from {task_result.slave_ip} successfully received", "status": "success"}

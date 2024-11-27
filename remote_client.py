@@ -16,10 +16,12 @@ async def main():
     data_path = str(input('Введите путь к файлу c данными: '))
     task_path = r"Z:\Korhov\task-server\mytask.py"
     data_path = r"Z:\Korhov\task-server\test_negr.jpg"
+    space_path = r"Z:\Korhov\task-server\test_space.jpg"
 
-    with open(task_path, 'rb') as task_file, open(data_path, 'rb') as data_file:
+    with open(task_path, 'rb') as task_file, open(data_path, 'rb') as data_file, open(space_path, 'rb') as data_space:
         task = task_file.read()
         data = data_file.read()
+        space = data_space.read()
 
         urls = [
             'http://192.168.1.107:5000/main_upload_files',
@@ -34,9 +36,9 @@ async def main():
         #     tasks.append(send_files(urls[i], task, data))
         
         # results = await asyncio.gather(*tasks)
-        await send_files(urls[0], task, data)
-        await send_files(urls[1], task, data)
-        await send_files(urls[2], task, data)
+        print(await send_files(urls[0], task, data))
+        print(await send_files(urls[1], task, data))
+        print(await send_files(urls[2], task, space))
         end_time = time.time()
 
         elapsed_time = end_time - start_time
