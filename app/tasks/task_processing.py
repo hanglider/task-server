@@ -78,6 +78,7 @@ async def distribute_files_to_slaves():
     print("Sending files to slaves")
     #TODO: отправить ссылки из task_manager.queue на хост
     if not task_manager.queue["tasks"] or not task_manager.queue["datas"]:
+        print("HUY")
         return
 
     task_file = task_manager.queue["tasks"].pop(0)
@@ -100,7 +101,7 @@ async def process_task(dir: str = "incoming"):
     for filename in os.listdir(f"app\{dir}"):
         filepath = os.path.join(f"app\{dir}", filename)
         if os.path.isfile(filepath):
-            if "data" in filepath:
+            if "imag" in filepath:
                 print(f"data path: {filepath}")
                 processor.add_task(task.main, task.load_image(filepath, 1)[0]) #TODO: figure out which part of the image we need to process
 

@@ -8,7 +8,7 @@ class TaskManager:
     def add_file_to_queue(self, filename: str):
         if "task" in filename:
             self.queue["tasks"].append(filename)
-        elif "data" in filename:
+        elif "image" in filename:
             self.queue["datas"].append(filename)
 
 
