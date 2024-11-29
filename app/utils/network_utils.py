@@ -4,7 +4,7 @@ import aiohttp
 
 
 
-async def notify_main_server(server_url: str, task_id: str, result: str):
+async def notify_main_server(server_url: str, meta_data: str, result: str):
     """
     Sends a notification to the main server that the task has been processed,
     along with the IP address of the slave node.
@@ -19,11 +19,10 @@ async def notify_main_server(server_url: str, task_id: str, result: str):
     """
     try:
         slave_ip = f"{socket.gethostbyname(socket.gethostname())}:5001"
-        print(f"local ip address(slave): ${slave_ip}:5001")
 
         async with aiohttp.ClientSession() as session:
             payload = {
-                "task_id": task_id,
+                "meta_data": meta_data,
                 "result": result,
                 "slave_ip": slave_ip
             }

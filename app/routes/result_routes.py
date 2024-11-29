@@ -8,7 +8,7 @@ router = APIRouter()
 
 
 class TaskResult(BaseModel):
-    task_id: str
+    meta_data: str
     result: str
     slave_ip: str
 
@@ -23,7 +23,9 @@ async def task_completed(task_result: TaskResult):
     Returns:
         dict: A success message.
     """
-    print(f"Task {task_result.task_id} completed by slave {task_result.slave_ip} with result: {task_result.result}")
+    isFilled, index = task_manager.add_result_to_list(task_result.meta_data, task_result.result)
+    if isFilled:
+        print(f"\033[34mTask with index {index} has been fully completed!\033[0m")
 
     if not task_result.result:
         raise HTTPException(status_code=400, detail="Result cannot be empty")
@@ -31,8 +33,7 @@ async def task_completed(task_result: TaskResult):
         raise HTTPException(status_code=400, detail="Slave IP cannot be empty")
 
     task_manager.available_hosts.append(task_result.slave_ip)
-
     if task_manager.available_hosts:
         asyncio.create_task(distribute_files_to_slaves())
 
-    return {"message": f"Task {task_result.task_id} from {task_result.slave_ip} successfully received", "status": "success"}
+    return {"message": f"Task {task_result.meta_data} from {task_result.slave_ip} successfully received", "status": "success"}

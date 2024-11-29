@@ -14,7 +14,7 @@ def cut_jpg(way_to_file, way_to_directory_save, index, split_size_gorizontal = 2
             if i != split_size_gorizontal and j != split_size_vertical:
                 im.crop(box=(x/split_size_gorizontal*i, y/split_size_vertical*j, 
                              x/split_size_gorizontal*(i+1)-1, y/split_size_vertical*(j+1)-1)).\
-                save('app/incoming/image{}{}{}.jpg'.format(str(i+1), str(j+1), index))
+                save('app/incoming/part{}!{}${}.jpg'.format(str((i + 1) * (j + 1)), index, split_size_gorizontal * split_size_vertical))
 
 
 def split_image(image, num_splits):
