@@ -11,6 +11,14 @@ import aiofiles
 router = APIRouter()
 
 
+@router.get("/heartbeat")
+async def heartbeat():
+    """
+    Эндпоинт для приема heartbeat-запросов.
+    """
+    return {"status": "alive"}
+
+
 @router.post("/main_upload_files")
 async def upload(files: List[UploadFile] = File(...)):
     os.makedirs("app/incoming", exist_ok=True)
