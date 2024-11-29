@@ -77,23 +77,34 @@ class TaskProcessor:
 async def distribute_files_to_slaves():
     print("Sending files to slaves")
     #TODO: отправить ссылки из task_manager.queue на хост
-    if not task_manager.queue["tasks"] or not task_manager.queue["datas"]:
-        print("HUY")
+    if not task_manager.queue:
+        print("\033[32mAll task have been completed\033[0m")
         return
 
-    task_file = task_manager.queue["tasks"].pop(0)
-    data_file = task_manager.queue["datas"].pop(0)
+    part = task_manager.queue.pop(0)
+    data_file = part[0]
+    task_file = part[1]
 
     form_data = aiohttp.FormData()
-    form_data.add_field('files', open(task_file, 'rb'), filename=task_file, content_type='application/octet-stream')
-    form_data.add_field('files', open(data_file, 'rb'), filename=data_file, content_type='application/octet-stream')
+    form_data.add_field(
+        'files', 
+        open(task_file, 'rb'), 
+        filename=os.path.basename(task_file),  # Используем только имя файла
+        content_type='application/octet-stream'
+    )
+    form_data.add_field(
+        'files', 
+        open(data_file, 'rb'), 
+        filename=os.path.basename(data_file),  # Используем только имя файла
+        content_type='application/octet-stream'
+    )
 
     async with aiohttp.ClientSession() as session:
         async with session.post(f"http://{task_manager.available_hosts.pop(0)}/slave_upload_files", data=form_data) as response:
             print(await response.json())
 
 
-async def process_task(dir: str = "incoming"):
+async def process_task(dir: str = "incoming", meta_data: str = "error"):
     from test_incoming import task
 
     processor = TaskProcessor(timeout=10)
@@ -101,14 +112,12 @@ async def process_task(dir: str = "incoming"):
     for filename in os.listdir(f"app\{dir}"):
         filepath = os.path.join(f"app\{dir}", filename)
         if os.path.isfile(filepath):
-            if "imag" in filepath:
-                print(f"data path: {filepath}")
+            if "part" in filepath:
                 processor.add_task(task.main, task.load_image(filepath, 1)[0]) #TODO: figure out which part of the image we need to process
 
     try:
         results = await processor.run_all_tasks()
         for i, result in enumerate(results):
-            task_id = f"task_{i + 1}"   #TODO: change task_id in respect to it's position in database
-            await notify_main_server("http://192.168.1.107:5000/task_completed", task_id, f"{result}")  #TODO: somehow get main_server_url from outside 
+            await notify_main_server("http://192.168.1.107:5000/task_completed", meta_data, f"{result}")  #TODO: somehow get main_server_url from outside 
     except TimeoutError as e:
         print("Error processing tasks:", e)

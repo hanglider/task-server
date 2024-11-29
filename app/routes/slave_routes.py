@@ -11,9 +11,9 @@ router = APIRouter()
 @router.post('/slave_upload_files')
 async def slave_upload(files: List[UploadFile] = File(...)):
     os.makedirs("app/test_incoming", exist_ok=True)
-    filenames = await slave_save_uploaded_files(files, "test_incoming")
+    filenames, meta_data = await slave_save_uploaded_files(files, "test_incoming")
 
 
-    asyncio.create_task(process_task("test_incoming"))
+    asyncio.create_task(process_task("test_incoming", meta_data))
 
     return {"message": "Files successfully uploaded"}
