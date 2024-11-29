@@ -17,8 +17,8 @@ async def start_heartbeat():
     Запускает heartbeat для проверки узлов slave.
     """
     #self.slave_hosts = ['192.168.1.107:5001']
-    from tasks.task_manager import TaskManager
-    slave_urls = TaskManager.slave_hosts
+    from tasks.task_manager import task_manager
+    slave_urls = task_manager.slave_hosts
     
     heartbeat = Heartbeat(node_type='main', slave_urls=slave_urls)
     await heartbeat.start()
@@ -28,8 +28,8 @@ def main():
     port = int(os.getenv("PORT", 5000))
 
     print(f"Starting server on {host}:{port}")
-    asyncio.create_task(start_heartbeat())
     uvicorn.run(app, host=host, port=port)
+    asyncio.run(start_heartbeat())
 
 if __name__ == "__main__":
     main()
