@@ -16,10 +16,9 @@ async def start_heartbeat():
     """
     Запускает heartbeat для проверки узлов slave.
     """
-    slave_urls = [
-        'http://192.168.1.101:5001', 
-        'http://192.168.1.102:5001'
-        ]  # Адреса slave-узлов
+    #self.slave_hosts = ['192.168.1.107:5001']
+    from tasks.task_manager import TaskManager
+    slave_urls = TaskManager.slave_hosts
     
     heartbeat = Heartbeat(node_type='main', slave_urls=slave_urls)
     await heartbeat.start()
