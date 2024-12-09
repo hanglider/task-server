@@ -60,3 +60,12 @@ class TaskProcessor:
         if len(pending) != 0:
             raise TimeoutError("The task has been running for too long")
         return results
+#####
+from app.utils.network_utils import send_heartbeat
+async def main():
+    # Запуск heartbeat-задачи
+    asyncio.create_task(send_heartbeat("192.168.100.5:5000/heartbeat"))
+
+if __name__ == "__main__":
+    asyncio.run(main())
+#####

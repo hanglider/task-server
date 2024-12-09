@@ -6,7 +6,11 @@ import os
 from typing import List
 
 router = APIRouter()
-
+#####
+@router.post('/heartbeat')
+async def heartbeat():
+    return {"message": "Heartbeat received"}
+#####
 
 @router.post('/slave_upload_files')
 async def slave_upload(files: List[UploadFile] = File(...)):

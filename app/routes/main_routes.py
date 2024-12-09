@@ -10,7 +10,20 @@ import aiofiles
 from pathlib import Path
 
 router = APIRouter()
+######
+from pydantic import BaseModel
+from tasks.task_manager import task_manager
 
+class HeartbeatRequest(BaseModel):
+    slave_ip: str
+
+@router.post('/heartbeat')
+async def heartbeat(request: HeartbeatRequest):
+    slave_ip = request.slave_ip
+    if slave_ip not in task_manager.available_hosts:
+        task_manager.available_hosts.append(slave_ip)
+    return {"message": "Heartbeat received"}
+######
 
 @router.post("/main_upload_files")
 async def upload(files: List[UploadFile] = File(...)):

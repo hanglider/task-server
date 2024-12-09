@@ -1,7 +1,9 @@
-from routes import main_routes, slave_routes, result_routes
 import os
 import uvicorn
 from fastapi import FastAPI
+from routes import main_routes, slave_routes, result_routes
+from utils.network_utils import send_heartbeat
+import asyncio
 
 app = FastAPI()
 
@@ -10,12 +12,19 @@ app.include_router(main_routes.router)
 app.include_router(slave_routes.router)
 app.include_router(result_routes.router)
 
-def main():
-    host = os.getenv("HOST", "172.20.10.2")
+async def start_server():
+    host = os.getenv("HOST", "192.168.100.5")
     port = int(os.getenv("PORT", 5000))
 
     print(f"Starting server on {host}:{port}")
-    uvicorn.run(app, host=host, port=port)
+    config = uvicorn.Config(app, host=host, port=port)
+    server = uvicorn.Server(config)
+    await server.serve()
+
+async def main():
+    # Запуск heartbeat-задачи
+    asyncio.create_task(send_heartbeat("http://192.168.100.5:5000/heartbeat"))
+    await start_server()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

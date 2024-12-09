@@ -2,7 +2,30 @@
 import socket
 import aiohttp
 
+#####
+import asyncio
 
+async def send_heartbeat(server_url: str, interval: int = 5):
+    while True:
+        try:
+            # Получение IP-адреса узла
+            slave_ip = f"{socket.gethostbyname(socket.gethostname())}:5001"
+            print(f"Sending heartbeat from {slave_ip}")
+
+            # Отправка POST-запроса
+            async with aiohttp.ClientSession() as session:
+                payload = {"slave_ip": slave_ip}
+                async with session.post(server_url, json=payload) as response:
+                    if response.status != 200:
+                        print(f"Heartbeat failed: {response.status}")
+                        response_text = await response.text()
+                        print(f"Response text: {response_text}")
+                    else:
+                        print(f"Heartbeat successful: {response.status}")
+        except Exception as e:
+            print(f"Heartbeat error: {str(e)}")
+        await asyncio.sleep(interval)
+######
 
 async def notify_main_server(server_url: str, meta_data: str, result: str):
     """
