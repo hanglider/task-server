@@ -39,8 +39,9 @@ async def main():
 
         elapsed_time = end_time - start_time
         print('Elapsed time: ', elapsed_time)
+        await send_heartbeat("192.168.100.5:5000/heartbeat")
 
 if __name__ == "__main__":
     # Запуск heartbeat-задачи
-    asyncio.create_task(send_heartbeat("192.168.100.5:5000/heartbeat"))
+    #asyncio.create_task(send_heartbeat("192.168.100.5:5000/heartbeat"))
     asyncio.run(main())
