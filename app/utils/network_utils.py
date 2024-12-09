@@ -5,7 +5,11 @@ import aiohttp
 #####
 import asyncio
 
-async def send_heartbeat(server_url: str, interval: int = 5):
+async def new_main():
+    print("Main server is down. Starting new main server...")
+    # запуск нового основного сервера
+
+async def send_heartbeat(server_url: str, interval: int = 15):
     while True:
         try:
             # Получение IP-адреса узла
@@ -22,6 +26,9 @@ async def send_heartbeat(server_url: str, interval: int = 5):
                         print(f"Response text: {response_text}")
                     else:
                         print(f"Heartbeat successful: {response.status}")
+        except aiohttp.ClientError as e:
+            print(f"Heartbeat error: {str(e)}")
+            await new_main()
         except Exception as e:
             print(f"Heartbeat error: {str(e)}")
         await asyncio.sleep(interval)
