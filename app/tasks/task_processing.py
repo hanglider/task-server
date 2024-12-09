@@ -118,6 +118,6 @@ async def process_task(dir: str = "incoming", meta_data: str = "error"):
     try:
         results = await processor.run_all_tasks()
         for i, result in enumerate(results):
-            await notify_main_server("http://192.168.1.107:5000/task_completed", meta_data, f"{result}")  #TODO: somehow get main_server_url from outside 
+            await notify_main_server("http://172.20.10.2:5000/task_completed", meta_data, f"{result}")  #TODO: somehow get main_server_url from outside 
     except TimeoutError as e:
         print("Error processing tasks:", e)

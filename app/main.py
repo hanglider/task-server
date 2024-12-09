@@ -11,7 +11,7 @@ app.include_router(slave_routes.router)
 app.include_router(result_routes.router)
 
 def main():
-    host = os.getenv("HOST", "192.168.1.107")
+    host = os.getenv("HOST", "172.20.10.2")
     port = int(os.getenv("PORT", 5000))
 
     print(f"Starting server on {host}:{port}")

@@ -2,7 +2,7 @@ class TaskManager:
     def __init__(self):
         self.queue = []
         self.results = {}
-        self.slave_hosts = ['192.168.1.107:5001']
+        self.slave_hosts = ['172.20.10.7:5000']
         self.available_hosts = self.slave_hosts.copy()
         self.main_file_index = 0
 

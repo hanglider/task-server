@@ -164,3 +164,6 @@ test*/
 incomming/
 output/
 incoming/
+results/
+*.db
+database/
