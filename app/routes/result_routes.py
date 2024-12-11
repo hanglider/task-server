@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from tasks.task_manager import task_manager
 from tasks.task_processing import distribute_files_to_slaves
+from routes.main_routes import manage_tasks
 import asyncio
 import aiofiles
 import os
@@ -39,6 +40,8 @@ async def task_completed(task_result: TaskResult):
         raise HTTPException(status_code=400, detail="Slave IP cannot be empty")
 
     task_manager.available_hosts.append(task_result.slave_ip)
+    if len(task_manager.queue) == 0:
+        asyncio.create_task(manage_tasks())
     if task_manager.available_hosts:
         asyncio.create_task(distribute_files_to_slaves())
 

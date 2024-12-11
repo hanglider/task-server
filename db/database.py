@@ -1,4 +1,5 @@
 import os
+import socket
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 from databases import Database
@@ -8,10 +9,8 @@ from typing import List
 import aiofiles
 import time
 
-# TODO: чтобы клиент на бд отсылал свой ip чтобы потом туда возвращать результаты
-
 # Конфигурация
-UPLOAD_FOLDER = "database/storage"
+UPLOAD_FOLDER = "db\storage"
 DB_URL = "sqlite:///file_metadata.db"
 
 # Создание папки для хранения файлов
@@ -33,7 +32,7 @@ async def startup():
         task_path TEXT NOT NULL UNIQUE,
         data_name TEXT NOT NULL,
         data_path TEXT NOT NULL UNIQUE,
-        upload_date TEXT DEFAULT CURRENT_TIMESTAMP,
+        upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_downloaded INTEGER DEFAULT 0
     )
     """
@@ -44,66 +43,100 @@ async def startup():
 async def shutdown():
     await database.disconnect()
 
+
 @app.post("/upload")
 async def upload_file(files: List[UploadFile] = File(...)):
-    print(time.time())
-    os.makedirs("db/storage", exist_ok=True)
     filenames = []
-    count = len(os.listdir('db/storage'))
+    count = len(os.listdir(UPLOAD_FOLDER))
+    data_name = ""
+    data_path = ""
+    task_name = ""
+    task_path = ""
     for file in files:
         try:
-            filename = f"{file.filename.split('.')[0]}{count}.{file.filename.split('.')[-1]}"
-            filepath = f"db/storage/{filename}"
+            filename = f"{file.filename.split('.')[0]}_{count + 1}.{file.filename.split('.')[-1]}"
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            if ".py" in filename:
+                task_name = filename
+                task_path = filepath
+            else:
+                data_name = filename
+                data_path = filepath
             async with aiofiles.open(filepath, 'wb') as f:
                 contents = await file.read()
                 await f.write(contents)
             filenames.append(filepath)
-            print(os.listdir('db/storage'))
-
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error saving file {file.filename}: {str(e)}")
         finally:
-            await file.close()    
-    return filenames
+            await file.close()
+
+    print(task_name, task_path, data_name, data_path)
+    print("huy" * 50)
+    # Добавление записи в базу данных
+    query = """
+    INSERT INTO file_metadata (task_name, task_path, data_name, data_path, is_downloaded)
+    VALUES (:task_name, :task_path, :data_name, :data_path, :is_downloaded)
+    """
+    values = {
+        "task_name": task_name,
+        "task_path": task_path,
+        "data_name": data_name,
+        "data_path": data_path,
+        "is_downloaded": 0
+    }
+    await database.execute(query, values)
+    return {"filenames": filenames}
+
 
 @app.get("/download")
 async def download_file():
-
+    # Modify the query to select the file with the earliest upload_date
     query = """
-    SELECT task_name, task_path, data_name, data_path, id FROM file_metadata WHERE is_downloaded = 0 LIMIT 1
+    SELECT task_name, task_path, data_name, data_path, is_downloaded, id FROM file_metadata 
+    WHERE is_downloaded = 0 
+    ORDER BY upload_date ASC LIMIT 1
     """
     result = await database.fetch_one(query=query)
     
     if not result:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail="No files available for download.")
     
-    task_name, task_path, data_name, data_path, is_downloaded, id = result["task_name"], result["task_path"], result["data_name"], result["data_path"], result["is_downloaded"], result["id"]
+    task_name = result["task_name"]
+    print(task_name)
+    task_path = result["task_path"]
+    data_name = result["data_name"]
+    data_path = result["data_path"]
+    is_downloaded = result["is_downloaded"]
+    record_id = result["id"]
     
-    if not os.path.exists(task_path):
-        raise HTTPException(status_code=404, detail="Task file not found on server")
+    # Check if the task and data files exist
+    if not task_name or not os.path.exists(task_path):
+        raise HTTPException(status_code=404, detail=f"Task file '{task_name}' not found on server.")
     
-    if not os.path.exists(data_path):
-        raise HTTPException(status_code=404, detail="Data file not found on server")
+    if not data_name or not os.path.exists(data_path):
+        raise HTTPException(status_code=404, detail=f"Data file '{data_name}' not found on server.")
     
+    # If the files have already been downloaded
     if is_downloaded:
-        return {"message": f"File {task_name} and {data_name} has already been downloaded."}
-    
+        raise HTTPException(status_code=400, detail=f"Files '{task_name}' and '{data_name}' have already been downloaded.")
+
+    # Update the database to mark the files as downloaded
     update_query = """
     UPDATE file_metadata
     SET is_downloaded = 1
     WHERE id = :id
     """
-    # TODO: можно хранить инфу о состоянии файла (ожидает обработки, обрабатывается и готов)
+    await database.execute(query=update_query, values={"id": record_id})
 
-    await database.execute(query=update_query, values={"id": id})
-
+    # Create a ZIP archive
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w") as zip_archive:
         zip_archive.write(task_path, arcname=task_name)
         zip_archive.write(data_path, arcname=data_name)
     zip_buffer.seek(0)
 
-    # Streaming the ZIP file as a response
+    # Return the ZIP archive as a response
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
@@ -112,7 +145,8 @@ async def download_file():
 
 
 
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="192.168.3.12", port=8000)
+    name = socket.gethostname()
+    host = socket.gethostbyname(name)
+    uvicorn.run(app, host=host, port=8000)

@@ -167,3 +167,5 @@ incoming/
 results/
 *.db
 database/
+
+db/storage/
