@@ -1,7 +1,14 @@
 import os
 from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from databases import Database
+import zipfile
+import io
+from typing import List
+import aiofiles
+import time
+
+# TODO: чтобы клиент на бд отсылал свой ip чтобы потом туда возвращать результаты
 
 # Конфигурация
 UPLOAD_FOLDER = "database/storage"
@@ -22,9 +29,12 @@ async def startup():
     query = """
     CREATE TABLE IF NOT EXISTS file_metadata (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_name TEXT NOT NULL,
-        file_path TEXT NOT NULL UNIQUE,
-        upload_date TEXT DEFAULT CURRENT_TIMESTAMP
+        task_name TEXT NOT NULL,
+        task_path TEXT NOT NULL UNIQUE,
+        data_name TEXT NOT NULL,
+        data_path TEXT NOT NULL UNIQUE,
+        upload_date TEXT DEFAULT CURRENT_TIMESTAMP,
+        is_downloaded INTEGER DEFAULT 0
     )
     """
     await database.execute(query)
@@ -34,40 +44,75 @@ async def startup():
 async def shutdown():
     await database.disconnect()
 
-
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    # try:
-    file_path = f"{UPLOAD_FOLDER}/{os.path.basename(file.filename)}"
-    with open(file_path, "wb") as f:
-        content = await file.read()
-        f.write(content)
-    return {"message": "File uploaded successfully"}
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+async def upload_file(files: List[UploadFile] = File(...)):
+    print(time.time())
+    os.makedirs("db/storage", exist_ok=True)
+    filenames = []
+    count = len(os.listdir('db/storage'))
+    for file in files:
+        try:
+            filename = f"{file.filename.split('.')[0]}{count}.{file.filename.split('.')[-1]}"
+            filepath = f"db/storage/{filename}"
+            async with aiofiles.open(filepath, 'wb') as f:
+                contents = await file.read()
+                await f.write(contents)
+            filenames.append(filepath)
+            print(os.listdir('db/storage'))
 
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error saving file {file.filename}: {str(e)}")
+        finally:
+            await file.close()    
+    return filenames
 
-
-@app.get("/download/{file_id}")
-async def download_file(file_id: int):
+@app.get("/download")
+async def download_file():
 
     query = """
-    SELECT file_name, file_path FROM file_metadata WHERE id = :file_id
+    SELECT task_name, task_path, data_name, data_path, id FROM file_metadata WHERE is_downloaded = 0 LIMIT 1
     """
-    result = await database.fetch_one(query=query, values={"file_id": file_id})
+    result = await database.fetch_one(query=query)
     
     if not result:
         raise HTTPException(status_code=404, detail="File not found")
     
-    file_name, file_path = result["file_name"], result["file_path"]
+    task_name, task_path, data_name, data_path, is_downloaded, id = result["task_name"], result["task_path"], result["data_name"], result["data_path"], result["is_downloaded"], result["id"]
     
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found on server")
+    if not os.path.exists(task_path):
+        raise HTTPException(status_code=404, detail="Task file not found on server")
     
-    return FileResponse(file_path, filename=file_name, media_type="application/octet-stream")
+    if not os.path.exists(data_path):
+        raise HTTPException(status_code=404, detail="Data file not found on server")
+    
+    if is_downloaded:
+        return {"message": f"File {task_name} and {data_name} has already been downloaded."}
+    
+    update_query = """
+    UPDATE file_metadata
+    SET is_downloaded = 1
+    WHERE id = :id
+    """
+    # TODO: можно хранить инфу о состоянии файла (ожидает обработки, обрабатывается и готов)
+
+    await database.execute(query=update_query, values={"id": id})
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_archive:
+        zip_archive.write(task_path, arcname=task_name)
+        zip_archive.write(data_path, arcname=data_name)
+    zip_buffer.seek(0)
+
+    # Streaming the ZIP file as a response
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={task_name}_and_{data_name}.zip"}
+    )
+
 
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="172.20.10.2", port=8000)
+    uvicorn.run(app, host="192.168.3.12", port=8000)

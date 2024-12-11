@@ -18,8 +18,8 @@ class TaskManager:
         else:
             return False, -1
 
-    def add_file_to_queue(self, part_name: str, task_name: str):
-        dictionary = (part_name, task_name)
+    def add_file_to_queue(self, data_part_name: str, task_name: str):
+        dictionary = (data_part_name, task_name)
         self.queue.append(dictionary)
 
 
