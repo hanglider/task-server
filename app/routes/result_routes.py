@@ -16,6 +16,7 @@ class TaskResult(BaseModel):
     result: str
     slave_ip: str
 
+
 @router.post('/task_completed')
 async def task_completed(task_result: TaskResult):
     """
@@ -27,11 +28,17 @@ async def task_completed(task_result: TaskResult):
         print(f"\033[34mTask with index {index} has been fully completed!\033[0m")
 
         task_id = task_result.meta_data
-        data = {
-            "task_id": task_id,
+        params = {
+            "task_id": task_id
         }
+        result = {
+            "task_id": task_id,
+            "result": task_result.result
+        }
+        # проблема здесь
         async with httpx.AsyncClient() as client:
-            await client.put("http://192.168.3.12:8000/update_status", json=data)
+            await client.put("http://192.168.3.12:8000/update_status", params={"task_id": task_id})
+            await client.post("http://192.168.3.12:8000/send_results", json={"task_id": task_id, "result": task_result.result})
 
         os.makedirs('app/results/', exist_ok=True)
     

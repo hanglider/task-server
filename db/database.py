@@ -1,6 +1,6 @@
 import os
 import socket
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from databases import Database
 import zipfile
@@ -8,6 +8,7 @@ import io
 from typing import List
 import aiofiles
 import time
+import httpx
 
 # Конфигурация
 UPLOAD_FOLDER = "db\storage"
@@ -34,7 +35,8 @@ async def startup():
         data_path TEXT NOT NULL UNIQUE,
         upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_downloaded INTEGER DEFAULT 0,
-        status TEXT DEFAULT 'waiting'
+        status TEXT DEFAULT 'waiting',
+        user_ip TEXT NOT NULL
     )
     """
     await database.execute(query)
@@ -46,7 +48,9 @@ async def shutdown():
 
 
 @app.post("/upload")
-async def upload_file(files: List[UploadFile] = File(...)):
+async def upload_file(request: Request, files: List[UploadFile] = File(...)):
+    user_ip = request.client.host
+
     filenames = []
     count = len(os.listdir(UPLOAD_FOLDER))
     data_name, data_path, task_name, task_path = None, None, None, None
@@ -75,8 +79,8 @@ async def upload_file(files: List[UploadFile] = File(...)):
         raise HTTPException(status_code=400, detail="Missing required files.")
 
     query = """
-    INSERT INTO file_metadata (task_name, task_path, data_name, data_path, is_downloaded)
-    VALUES (:task_name, :task_path, :data_name, :data_path, :is_downloaded)
+    INSERT INTO file_metadata (task_name, task_path, data_name, data_path, is_downloaded, user_ip)
+    VALUES (:task_name, :task_path, :data_name, :data_path, :is_downloaded, :user_ip)
     """
     values = {
         "task_name": task_name,
@@ -84,6 +88,7 @@ async def upload_file(files: List[UploadFile] = File(...)):
         "data_name": data_name,
         "data_path": data_path,
         "is_downloaded": 0,
+        "user_ip": user_ip
     }
 
     try:
@@ -91,7 +96,7 @@ async def upload_file(files: List[UploadFile] = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    return {"filenames": filenames}
+    return {"filenames": filenames, "user_ip": user_ip}
 
 
 
@@ -149,7 +154,9 @@ async def download_file():
     )
 
 @app.put("/update_status")
-async def update_status(task_id: int):
+async def update_status(task_id: int = Query(..., description="ID of the task to update")):
+
+    print(f"HUYUHYUHYHYUHYUHYHY{task_id}")
     if not task_id:
         raise HTTPException(status_code=400, detail="Task ID and status are required.")
     
@@ -169,6 +176,29 @@ async def update_status(task_id: int):
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
     return {"message": "Task status updated successfully", "task_id": task_id}
+
+@app.post("/send_results")
+async def send_results_to_client(task_id: int, result_data: dict):
+    query = "SELECT user_ip FROM file_metadata WHERE id = :task_id"
+    db_result = await database.fetch_one(query, {"task_id": task_id})
+    
+    if not db_result:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    
+    client_ip = db_result["user_ip"]
+    client_url = f"http://{client_ip}:5002/receive_results"
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(client_url, json=result_data)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    return {"message": "Results sent successfully", "client_ip": client_ip}
+
+
 
 if __name__ == "__main__":
     import uvicorn
