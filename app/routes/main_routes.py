@@ -43,8 +43,13 @@ async def download_and_process_files(task_manager, db_ip):
         zip_path = "app/incoming/temp.zip"
         with open(zip_path, "wb") as f:
             f.write(response.content)
+        
+        # TODO в этом месте ты должен вытащить id записи в бд из респонса
+        # task_manager.main_file_index заменить на id
 
-        await extract_zip_with_index(zip_path, "app/incoming", task_manager.main_file_index)
+        id = response.headers.get("X-Task-ID")
+
+        await extract_zip_with_index(zip_path, "app/incoming", id)
         os.remove(zip_path)
 
         # Обработка файлов
@@ -54,15 +59,14 @@ async def download_and_process_files(task_manager, db_ip):
                 processed_files.add(filename)  # Отмечаем файл как обработанный
                 module_name = filename.split(".")[0]
                 task_module = importlib.import_module(f'incoming.{module_name}')
-                data_filepath = f"app/incoming/data{task_manager.main_file_index}.jpg"
-                task_module.cut_jpg(data_filepath, r"", task_manager.main_file_index)
+                data_filepath = f"app/incoming/data{id}.jpg"
+                task_module.cut_jpg(data_filepath, r"", id)
 
                 # Добавление частей в очередь
                 folder_path = Path('app/incoming')
                 for file in folder_path.iterdir():
-                    if 'part' in file.name and str(task_manager.main_file_index) in file.name.split("!")[1][0]:
+                    if 'part' in file.name and str(id) in file.name.split("!")[1][0]:
                         task_manager.add_file_to_queue(str(file), f"app/incoming/{filename}")
-        task_manager.main_file_index += 1
     except Exception as e:
         print(f"Error processing files: {e}")
 
@@ -94,3 +98,4 @@ g_port = 0
 def set_port(port):
     global g_port
     g_port = port
+

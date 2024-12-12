@@ -76,7 +76,6 @@ class TaskProcessor:
 
 async def distribute_files_to_slaves():
     print("Sending files to slaves")
-    #TODO: отправить ссылки из task_manager.queue на хост
     if not task_manager.queue:
         print("\033[32mAll task have been completed\033[0m")
         return
@@ -118,6 +117,6 @@ async def process_task(dir: str = "incoming", meta_data: str = "error"):
     try:
         results = await processor.run_all_tasks()
         for i, result in enumerate(results):
-            await notify_main_server("http://192.168.1.107:5000/task_completed", meta_data, f"{result}")  #TODO: somehow get main_server_url from outside 
+            await notify_main_server("http://192.168.3.12:5000/task_completed", meta_data, f"{result}")  #TODO: somehow get main_server_url from outside 
     except TimeoutError as e:
         print("Error processing tasks:", e)

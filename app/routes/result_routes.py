@@ -5,6 +5,8 @@ from tasks.task_processing import distribute_files_to_slaves
 import asyncio
 import aiofiles
 import os
+import httpx
+
 
 router = APIRouter()
 
@@ -23,7 +25,16 @@ async def task_completed(task_result: TaskResult):
     is_filled, index = task_manager.add_result_to_list(task_result.meta_data, task_result.result)
     if is_filled:
         print(f"\033[34mTask with index {index} has been fully completed!\033[0m")
+
+        task_id = task_result.meta_data
+        data = {
+            "task_id": task_id,
+        }
+        async with httpx.AsyncClient() as client:
+            await client.put("http://192.168.3.12:8000/update_status", json=data)
+
         os.makedirs('app/results/', exist_ok=True)
+    
         async with aiofiles.open(f"app/results/result{index}.txt", 'w') as f:
             await f.write(str(task_manager.results[index]))
 
@@ -31,6 +42,8 @@ async def task_completed(task_result: TaskResult):
         raise HTTPException(status_code=400, detail="Result cannot be empty")
     if not task_result.slave_ip:
         raise HTTPException(status_code=400, detail="Slave IP cannot be empty")
+    
+    
 
     print("[from result_route.py] appending hosts to available_hosts")
     task_manager.available_hosts.append(task_result.slave_ip)

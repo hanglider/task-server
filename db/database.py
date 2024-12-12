@@ -33,7 +33,8 @@ async def startup():
         data_name TEXT NOT NULL,
         data_path TEXT NOT NULL UNIQUE,
         upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_downloaded INTEGER DEFAULT 0
+        is_downloaded INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'waiting'
     )
     """
     await database.execute(query)
@@ -48,32 +49,31 @@ async def shutdown():
 async def upload_file(files: List[UploadFile] = File(...)):
     filenames = []
     count = len(os.listdir(UPLOAD_FOLDER))
-    data_name = ""
-    data_path = ""
-    task_name = ""
-    task_path = ""
+    data_name, data_path, task_name, task_path = None, None, None, None
+
     for file in files:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="Invalid file name.")
+
+        filename = f"{file.filename.split('.')[0]}_{count + 1}.{file.filename.split('.')[-1]}"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
         try:
-            filename = f"{file.filename.split('.')[0]}_{count + 1}.{file.filename.split('.')[-1]}"
-            filepath = os.path.join(UPLOAD_FOLDER, filename)
-            if ".py" in filename:
-                task_name = filename
-                task_path = filepath
-            else:
-                data_name = filename
-                data_path = filepath
             async with aiofiles.open(filepath, 'wb') as f:
                 contents = await file.read()
                 await f.write(contents)
+            if ".py" in filename:
+                task_name, task_path = filename, filepath
+            else:
+                data_name, data_path = filename, filepath
             filenames.append(filepath)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error saving file {file.filename}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
         finally:
             await file.close()
 
-    print(task_name, task_path, data_name, data_path)
-    print("huy" * 50)
-    # Добавление записи в базу данных
+    if not task_name or not task_path or not data_name or not data_path:
+        raise HTTPException(status_code=400, detail="Missing required files.")
+
     query = """
     INSERT INTO file_metadata (task_name, task_path, data_name, data_path, is_downloaded)
     VALUES (:task_name, :task_path, :data_name, :data_path, :is_downloaded)
@@ -83,10 +83,16 @@ async def upload_file(files: List[UploadFile] = File(...)):
         "task_path": task_path,
         "data_name": data_name,
         "data_path": data_path,
-        "is_downloaded": 0
+        "is_downloaded": 0,
     }
-    await database.execute(query, values)
+
+    try:
+        await database.execute(query, values)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
     return {"filenames": filenames}
+
 
 
 @app.get("/download")
@@ -103,7 +109,6 @@ async def download_file():
         raise HTTPException(status_code=404, detail="No files available for download.")
     
     task_name = result["task_name"]
-    print(task_name)
     task_path = result["task_path"]
     data_name = result["data_name"]
     data_path = result["data_path"]
@@ -124,7 +129,7 @@ async def download_file():
     # Update the database to mark the files as downloaded
     update_query = """
     UPDATE file_metadata
-    SET is_downloaded = 1
+    SET is_downloaded = 1, status = 'processing'
     WHERE id = :id
     """
     await database.execute(query=update_query, values={"id": record_id})
@@ -136,14 +141,34 @@ async def download_file():
         zip_archive.write(data_path, arcname=data_name)
     zip_buffer.seek(0)
 
-    # Return the ZIP archive as a response
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={task_name}_and_{data_name}.zip"}
+        headers={"Content-Disposition": f"attachment; filename={task_name}_and_{data_name}.zip", 
+                  "X-Task-ID": str(record_id)}
     )
 
+@app.put("/update_status")
+async def update_status(task_id: int):
+    if not task_id:
+        raise HTTPException(status_code=400, detail="Task ID and status are required.")
+    
+    # Обновление статуса в базе данных
+    query = """
+    UPDATE file_metadata
+    SET status = :status
+    WHERE id = :task_id
+    """
+    values = {"status": 'completed', "task_id": task_id}
 
+    try:
+        result = await database.execute(query, values)
+        if result == 0:
+            raise HTTPException(status_code=404, detail="Task not found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+    return {"message": "Task status updated successfully", "task_id": task_id}
 
 if __name__ == "__main__":
     import uvicorn
