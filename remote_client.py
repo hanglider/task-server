@@ -34,7 +34,6 @@ async def main():
 
         start_time = time.time()
 
-        print(await send_files(urls[0], task, data))
         print(await send_files(urls[1], task, data))
         print(await send_files(urls[2], task, space))
         print(await send_files(urls[3], task, negr))

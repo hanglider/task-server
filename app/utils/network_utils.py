@@ -1,6 +1,7 @@
 # TODO: Сделать heartbeat
 import socket
 import aiohttp
+from routes import main_routes
 
 #####
 import asyncio
@@ -48,8 +49,8 @@ async def notify_main_server(server_url: str, meta_data: str, result: str):
         dict: The response from the main server.
     """
     try:
-        slave_ip = f"{socket.gethostbyname(socket.gethostname())}:5001"
-
+        slave_ip = f"{socket.gethostbyname(socket.gethostname())}:{main_routes.g_port}"
+        print(f"[from network_utils.py] sending from: {slave_ip}")
         async with aiohttp.ClientSession() as session:
             payload = {
                 "meta_data": meta_data,

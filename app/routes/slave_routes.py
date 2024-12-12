@@ -15,6 +15,8 @@ async def heartbeat():
 @router.post('/slave_upload_files')
 async def slave_upload(files: List[UploadFile] = File(...)):
     os.makedirs("app/test_incoming", exist_ok=True)
+    for file in files:
+        print(f"[from slave_routes.py] received files: {file.filename}")
     filenames, meta_data = await slave_save_uploaded_files(files, "test_incoming")
 
 

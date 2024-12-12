@@ -106,7 +106,7 @@ async def distribute_files_to_slaves():
 
 async def process_task(dir: str = "incoming", meta_data: str = "error"):
     from test_incoming import task
-
+    await asyncio.sleep(7)
     processor = TaskProcessor(timeout=10)
 
     for filename in os.listdir(f"app\{dir}"):
