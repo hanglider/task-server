@@ -11,6 +11,7 @@ from pathlib import Path
 import httpx
 import zipfile
 import socket
+from log import log_action
 
 DB_IP = "192.168.1.107:8000"
 
@@ -24,32 +25,43 @@ class HeartbeatRequest(BaseModel):
 
 @router.post('/heartbeat')
 async def heartbeat(request: HeartbeatRequest):
+    """
+    Получает heartbeat от slave и добавляет его IP в список доступных хостов.
+    """
     slave_ip = request.slave_ip
     if slave_ip not in task_manager.available_hosts:
         task_manager.available_hosts.append(slave_ip)
+        log_action(f"Добавлен новый slave: {slave_ip}")
+    else:
+        log_action(f"Heartbeat получен от существующего slave: {slave_ip}")
     return {"message": "Heartbeat received"}
-######
 
 async def manage_tasks():
     os.makedirs("app/incoming", exist_ok=True)
+    log_action("Создана директория для входящих файлов: app/incoming")
 
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(f"http://{DB_IP}/download")
+            log_action(f"Выполнен запрос на загрузку файла с {DB_IP}")
 
         if response.status_code != 200:
             print(f"Error downloading file: {response.status_code}")
             print(response.text)  # Вывод текста ошибки для диагностики
+            log_action(f"Ошибка загрузки файла: {response.status_code} - {response.text}")
             raise Exception("Failed to download file")
 
         # Путь для сохранения ZIP-файла
         zip_path = "app/incoming/temp.zip"
         with open(zip_path, "wb") as zip_file:
             zip_file.write(response.content)
+        log_action(f"Файл успешно загружен и сохранён как {zip_path}")
 
         await extract_zip_with_index("app/incoming/temp.zip", "app/incoming", task_manager.main_file_index)
-
+        log_action(f"ZIP-файл распакован в app/incoming, индекс главного файла: {task_manager.main_file_index}")
+        
         os.remove(zip_path)
+        log_action(f"Временный ZIP-файл удалён: {zip_path}")
 
         filenames = os.listdir("app/incoming")
 
@@ -57,22 +69,32 @@ async def manage_tasks():
             if 'task' in filename:
                 module_name = os.path.basename(filename.split(".")[0])
                 task_module = importlib.import_module(f'incoming.{module_name}')
+                log_action(f"Импортирован модуль задачи: {module_name}")
+
                 filepath = f"app/incoming/data{task_manager.main_file_index}.jpg"
                 task_module.cut_jpg(filepath, r"", task_manager.main_file_index)
+                log_action(f"Обработан файл JPG: {filepath}")
+
                 folder_path = Path('app/incoming')
                 for file in folder_path.iterdir():
                     if 'part' in file.name:
                         if str(task_manager.main_file_index) in file.name.split("!")[1][0]:
-                            task_manager.add_file_to_queue(f"app/incoming/{file.name}", f"app/incoming/{filename}")           
+                            task_manager.add_file_to_queue(f"app/incoming/{file.name}", f"app/incoming/{filename}")  
+                            log_action(f"Добавлен файл в очередь задач: {file.name}")
+
         if task_manager.available_hosts:
             asyncio.create_task(distribute_files_to_slaves())
+            log_action("Запущено распределение файлов по slave")
+
         task_manager.main_file_index += 1
         if len(task_manager.queue) <= len(task_manager.available_hosts):
             asyncio.create_task(manage_tasks())
+            log_action("Запущено управление задачами")
 
     except HTTPException as e:
         if e.status_code == 404:
             print(f"No files available for download. {e}")
+            log_action(f"Нет доступных файлов для загрузки. Ошибка: {e}")
         raise
 
 g_port = 0
@@ -85,6 +107,7 @@ def set_port(port):
 async def start():
     name = socket.gethostbyname(socket.gethostname())
     global g_port
+    log_action(f"Сервер запущен на {name}:{g_port}")
     print(f"{name}:{g_port}")
     if f"{name}:{g_port}" not in task_manager.available_hosts:
         await manage_tasks()
