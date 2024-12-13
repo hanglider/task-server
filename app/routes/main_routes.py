@@ -9,8 +9,9 @@ from typing import List
 import importlib
 from pathlib import Path
 import httpx
+from tasks.task_manager import TaskManager
 
-DB_IP = "192.168.1.107:8000"
+HOSTS_DB = "192.168.1.107:8001"
 
 router = APIRouter()
 ######
@@ -29,7 +30,9 @@ async def heartbeat(request: HeartbeatRequest):
 
 processed_files = set()  # Хранение обработанных файлов
 
-async def download_and_process_files(task_manager, db_ip):
+async def download_and_process_files(task_manager: TaskManager, db_ip):
+    if len(task_manager.available_hosts) == 0:
+        pass
     os.makedirs("app/incoming", exist_ok=True)
 
     try:
@@ -71,6 +74,9 @@ async def download_and_process_files(task_manager, db_ip):
 
 
 async def distribute_files_to_slaves(task_manager):
+    if len(task_manager.available_hosts) == 0:
+        pass
+    print(task_manager.available_hosts)
     while task_manager.queue and task_manager.available_hosts:
         data_file, task_file = task_manager.queue.pop(0)
         host = task_manager.available_hosts.pop(0)
@@ -93,8 +99,11 @@ async def distribute_files_to_slaves(task_manager):
             task_manager.available_hosts.append(host)
 
 g_port = 0
+g_host = 0
 
-def set_port(port):
+def set_port(port, host):
     global g_port
     g_port = port
+    global g_host
+    g_host = host
 

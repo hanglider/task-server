@@ -1,17 +1,21 @@
 import os
 import socket
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Query
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from databases import Database
 import zipfile
 import io
 from typing import List
 import aiofiles
+import time
 import httpx
+from pydantic import BaseModel
+import requests
 
 # Конфигурация
 UPLOAD_FOLDER = "db\storage"
 DB_URL = "sqlite:///file_metadata.db"
+HOSTS_DB = "192.168.1.107:8001"
 
 # Создание папки для хранения файлов
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -152,55 +156,88 @@ async def download_file():
                   "X-Task-ID": str(record_id)}
     )
 
-@app.put("/update_status")
-async def update_status(task_id: int = Query(..., description="ID of the task to update")):
+class TaskResult(BaseModel):
+    task_id: str
+    task_result: str
 
-    print(f"HUYUHYUHYHYUHYUHYHY{task_id}")
-    if not task_id:
-        raise HTTPException(status_code=400, detail="Task ID and status are required.")
-    
-    # Обновление статуса в базе данных
-    query = """
+@app.post("/send_results")
+async def send_results_to_client(task_result: TaskResult):
+    update_query = """
     UPDATE file_metadata
     SET status = :status
     WHERE id = :task_id
     """
-    values = {"status": 'completed', "task_id": task_id}
+    update_values = {"status": "completed", "task_id": task_result.task_id}
 
+    # Обновление статуса задачи в БД
     try:
-        result = await database.execute(query, values)
-        if result == 0:
+        update_result = await database.execute(update_query, update_values)
+        if update_result == 0:
             raise HTTPException(status_code=404, detail="Task not found.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
-    return {"message": "Task status updated successfully", "task_id": task_id}
+    # Получение IP-адреса клиента
+    fetch_query = "SELECT user_ip FROM file_metadata WHERE id = :task_id"
+    db_result = await database.fetch_one(fetch_query, {"task_id": task_result.task_id})
 
-@app.post("/send_results")
-async def send_results_to_client(task_id: int, result_data: dict):
-    query = "SELECT user_ip FROM file_metadata WHERE id = :task_id"
-    db_result = await database.fetch_one(query, {"task_id": task_id})
-    
     if not db_result:
         raise HTTPException(status_code=404, detail="Task not found.")
     
     client_ip = db_result["user_ip"]
     client_url = f"http://{client_ip}:5002/receive_results"
+    
+    # Сохранение результата в файл
+    os.makedirs("db/results", exist_ok=True)
+    result_path = f"db/results/result_{task_result.task_id}.txt"
+    async with aiofiles.open(result_path, "w") as file:
+        await file.write(task_result.task_result)
 
+    # Отправка файла клиенту
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(client_url, json=result_data)
-            response.raise_for_status()
+            with open(result_path, "rb") as result_file:
+                response = await client.post(client_url, files={"file": result_file})
+                response.raise_for_status()
         except httpx.HTTPStatusError as e:
             raise HTTPException(status_code=response.status_code, detail=response.text)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
-    return {"message": "Results sent successfully", "client_ip": client_ip}
+    
+    return {
+        "message": "Task processed successfully",
+        "task_id": task_result.task_id,
+        "client_ip": client_ip
+    }
 
+
+def send_ip_to_server(host, port):
+    # Получаем свой IP-адрес
+
+    # Данные для отправки
+    client_ip = f"{host}:{port}"
+    data = {"ip": client_ip}
+    
+    try:
+        # Отправляем запрос на сервер
+        response = requests.post(f"http://{HOSTS_DB}/add_ip", json=data)
+        
+        # Проверяем статус код ответа
+        if response.status_code == 200:
+            print(f"IP {client_ip} успешно отправлен на сервер.")
+            return response.json()  # Возвращаем ответ от сервера
+        else:
+            print(f"Ошибка при отправке IP: {response.status_code} - {response.text}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Ошибка при отправке IP: {e}")
+        return None
 
 
 if __name__ == "__main__":
     import uvicorn
     name = socket.gethostname()
     host = socket.gethostbyname(name)
-    uvicorn.run(app, host=host, port=8000)
+    port = 8000
+    send_ip_to_server(host, port)
+    uvicorn.run(app, host=host, port=port)

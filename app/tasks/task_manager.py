@@ -3,7 +3,7 @@ from asyncio import Lock
 class TaskManager:
     def __init__(self):
         self.queue = []
-        self.available_hosts = ['192.168.3.12:5001']
+        self.available_hosts = []
         self.results = {}
         self.main_file_index = 0
         self.lock = Lock()
