@@ -10,9 +10,10 @@ import uvicorn
 import socket
 from tasks.task_manager import task_manager
 
-DB_IP = "192.168.1.107:8000"
+DB_IP = "192.168.3.12:8000"
 NAME = socket.gethostname()
 HOST = socket.gethostbyname(NAME)
+PORT = 5000
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,7 +29,7 @@ async def lifespan(app: FastAPI):
 
 
 async def start_task_manager():
-    if f"{HOST}:5000" not in task_manager.available_hosts:
+    if f"{HOST}:{PORT}" not in task_manager.available_hosts:
         while True:
             await asyncio.sleep(1)  # Интервал для запуска задач
             await main_routes.download_and_process_files(task_manager, DB_IP)
@@ -44,5 +45,5 @@ app.include_router(result_routes.router)
 
 if __name__ == "__main__":
     main_routes.set_port(5000)
-    print(f"Запуск сервера на {HOST}:5000")
-    uvicorn.run(app, host=HOST, port=5000)
+    print(f"Запуск сервера на {HOST}:{PORT}")
+    uvicorn.run(app, host=HOST, port=PORT)

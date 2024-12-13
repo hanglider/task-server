@@ -154,101 +154,60 @@ async def download_file():
                   "X-Task-ID": str(record_id)}
     )
 
-# @app.put("/update_status")
-# async def update_status(task_id: int = Query(..., description="ID of the task to update")):
-
-#     print(f"HUYUHYUHYHYUHYUHYHY{task_id}")
-#     if not task_id:
-#         raise HTTPException(status_code=400, detail="Task ID and status are required.")
-    
-#     # Обновление статуса в базе данных
-#     query = """
-#     UPDATE file_metadata
-#     SET status = :status
-#     WHERE id = :task_id
-#     """
-#     values = {"status": 'completed', "task_id": task_id}
-
-#     try:
-#         result = await database.execute(query, values)
-#         if result == 0:
-#             raise HTTPException(status_code=404, detail="Task not found.")
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
-#     return {"message": "Task status updated successfully", "task_id": task_id}
-
-# @app.post("/send_results")
-# async def send_results_to_client(task_id: int, result_data: dict):
-#     query = "SELECT user_ip FROM file_metadata WHERE id = :task_id"
-#     db_result = await database.fetch_one(query, {"task_id": task_id})
-    
-#     if not db_result:
-#         raise HTTPException(status_code=404, detail="Task not found.")
-    
-#     client_ip = db_result["user_ip"]
-#     client_url = f"http://{client_ip}:5002/receive_results"
-
-#     async with httpx.AsyncClient() as client:
-#         try:
-#             response = await client.post(client_url, json=result_data)
-#             response.raise_for_status()
-#         except httpx.HTTPStatusError as e:
-#             raise HTTPException(status_code=response.status_code, detail=response.text)
-#         except Exception as e:
-#             raise HTTPException(status_code=500, detail=str(e))
-#     return {"message": "Results sent successfully", "client_ip": client_ip}
-
 class TaskResult(BaseModel):
-    meta_data: str
-    result: str
-    slave_ip: str
+    task_id: str
+    task_result: str
 
 @app.post("/send_results")
 async def send_results_to_client(task_result: TaskResult):
-    num_part, index, num_splits = map(int, task_result.meta_data.replace('!', ' ').replace('$', ' ').split())
-    print(f"TASK_TD: {index}")
-    # update_query = """
-    # UPDATE file_metadata
-    # SET status = :status
-    # WHERE id = :task_id
-    # """
-    # update_values = {"status": 'completed', "task_id": task_id}
+    update_query = """
+    UPDATE file_metadata
+    SET status = :status
+    WHERE id = :task_id
+    """
+    update_values = {"status": "completed", "task_id": task_result.task_id}
 
-    # try:
-    #     update_result = await database.execute(update_query, update_values)
-    #     if update_result == 0:
-    #         raise HTTPException(status_code=404, detail="Task not found.")
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    # Обновление статуса задачи в БД
+    try:
+        update_result = await database.execute(update_query, update_values)
+        if update_result == 0:
+            raise HTTPException(status_code=404, detail="Task not found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
+    # Получение IP-адреса клиента
+    fetch_query = "SELECT user_ip FROM file_metadata WHERE id = :task_id"
+    db_result = await database.fetch_one(fetch_query, {"task_id": task_result.task_id})
 
-    # fetch_query = "SELECT user_ip FROM file_metadata WHERE id = :task_id"
-    # db_result = await database.fetch_one(fetch_query, {"task_id": task_id})
+    if not db_result:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    
+    client_ip = db_result["user_ip"]
+    client_url = f"http://{client_ip}:5002/receive_results"
+    
+    # Сохранение результата в файл
+    os.makedirs("db/results", exist_ok=True)
+    result_path = f"db/results/result_{task_result.task_id}.txt"
+    async with aiofiles.open(result_path, "w") as file:
+        await file.write(task_result.task_result)
 
-    # if not db_result:
-    #     raise HTTPException(status_code=404, detail="Task not found.")
+    # Отправка файла клиенту
+    async with httpx.AsyncClient() as client:
+        try:
+            with open(result_path, "rb") as result_file:
+                response = await client.post(client_url, files={"file": result_file})
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    return {
+        "message": "Task processed successfully",
+        "task_id": task_result.task_id,
+        "client_ip": client_ip
+    }
 
-    # client_ip = db_result["user_ip"]
-    # client_url = f"http://{client_ip}:5002/receive_results"
-
-    # # Чтение данных из загруженного файла
-    # task_data = await task_result.read()
-
-    # async with httpx.AsyncClient() as client:
-    #     try:
-    #         response = await client.post(client_url, files={"file": task_data})
-    #         response.raise_for_status()
-    #     except httpx.HTTPStatusError as e:
-    #         raise HTTPException(status_code=response.status_code, detail=response.text)
-    #     except Exception as e:
-    #         raise HTTPException(status_code=500, detail=str(e))
-
-    # return {
-    #     "message": "Task processed successfully",
-    #     "task_id": task_id,
-    #     "client_ip": client_ip
-    # }
 
 
 

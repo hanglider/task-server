@@ -11,7 +11,7 @@ import importlib
 from pathlib import Path
 import httpx
 
-DB_IP = "192.168.1.107:8000"
+DB_IP = "192.168.3.12:8000"
 
 router = APIRouter()
 ######

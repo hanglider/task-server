@@ -169,3 +169,5 @@ results/
 database/
 
 db/storage/
+db/results/
+client_results/
