@@ -1,4 +1,3 @@
-from collections import defaultdict
 from asyncio import Lock
 
 class TaskManager:

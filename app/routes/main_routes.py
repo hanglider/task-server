@@ -1,10 +1,9 @@
 import aiofiles
 import aiohttp
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter
 from tasks.task_manager import task_manager
 from utils.file_utils import extract_zip_with_index
 from tasks.task_processing import distribute_files_to_slaves
-import asyncio
 import os
 from typing import List
 import importlib

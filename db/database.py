@@ -7,7 +7,6 @@ import zipfile
 import io
 from typing import List
 import aiofiles
-import time
 import httpx
 
 # Конфигурация

@@ -1,9 +1,7 @@
-# TODO: Сделать heartbeat
 import socket
 import aiohttp
 from routes import main_routes
 
-#####
 import asyncio
 
 async def new_main():
@@ -33,7 +31,6 @@ async def send_heartbeat(server_url: str, interval: int = 15):
         except Exception as e:
             print(f"Heartbeat error: {str(e)}")
         await asyncio.sleep(interval)
-######
 
 async def notify_main_server(server_url: str, meta_data: str, result: str):
     """

@@ -1,4 +1,8 @@
-fastapi
-aiohttp
-uvicorn
 aiofiles
+aiohttp
+fastapi
+pydantic
+httpx
+uvicorn
+databases
+opencv-python-headless
