@@ -6,10 +6,12 @@ import asyncio
 import aiofiles
 import os
 import httpx
+import aiohttp
 
 
 router = APIRouter()
 
+DB_IP = "192.168.3.12:8000"
 
 class TaskResult(BaseModel):
     meta_data: str
@@ -28,22 +30,44 @@ async def task_completed(task_result: TaskResult):
         print(f"\033[34mTask with index {index} has been fully completed!\033[0m")
 
         task_id = task_result.meta_data
-        params = {
+        data = {
             "task_id": task_id
         }
-        result = {
-            "task_id": task_id,
-            "result": task_result.result
-        }
-        # проблема здесь
-        async with httpx.AsyncClient() as client:
-            await client.put("http://192.168.3.12:8000/update_status", params={"task_id": task_id})
-            await client.post("http://192.168.3.12:8000/send_results", json={"task_id": task_id, "result": task_result.result})
+        
 
         os.makedirs('app/results/', exist_ok=True)
     
         async with aiofiles.open(f"app/results/result{index}.txt", 'w') as f:
             await f.write(str(task_manager.results[index]))
+
+        async with aiohttp.ClientSession() as session:
+            print(os.listdir("app/results"))
+        # Читаем содержимое файла в байтовом формате
+            async with aiofiles.open(f"app/results/result{index}.txt", 'rb') as file:
+                file_content = await file.read()  # Считываем содержимое файла
+                
+            # Формируем данные для отправки
+            form_data = aiohttp.FormData()
+            form_data.add_field("task_id", str(index))  # ID задачи как параметр
+            form_data.add_field(
+            "task_result",
+            file_content,  # Содержимое файла
+            filename=f"result{index}.txt",  # Имя файла
+            content_type="application/octet-stream"  # MIME-тип
+        )
+            
+            # Выполняем запрос
+            try:
+                async with session.post(f"http://{DB_IP}/send_results", data=form_data) as response:
+                    # Обработка ответа
+                    print("Status Code:", response.status)
+                    try:
+                        result = await response.json()  # Парсим JSON
+                        print("Response JSON:", result)
+                    except Exception as e:
+                        print(f"Failed to parse JSON: {e}")
+            except aiohttp.ClientError as e:
+                print(f"Request failed: {e}")
 
     if not task_result.result:
         raise HTTPException(status_code=400, detail="Result cannot be empty")
