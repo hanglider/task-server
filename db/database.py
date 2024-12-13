@@ -1,6 +1,6 @@
 import os
 import socket
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Query
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from databases import Database
 import zipfile
@@ -9,6 +9,7 @@ from typing import List
 import aiofiles
 import time
 import httpx
+from pydantic import BaseModel
 
 # Конфигурация
 UPLOAD_FOLDER = "db\storage"
@@ -198,50 +199,56 @@ async def download_file():
 #             raise HTTPException(status_code=500, detail=str(e))
 #     return {"message": "Results sent successfully", "client_ip": client_ip}
 
-@app.post("/send_results")
-async def send_results_to_client( task_id: int = Query(...), task_result: UploadFile = File(...)):
-    print(f"TASK_TD: {task_id}")
-    update_query = """
-    UPDATE file_metadata
-    SET status = :status
-    WHERE id = :task_id
-    """
-    update_values = {"status": 'completed', "task_id": task_id}
+class TaskResult(BaseModel):
+    meta_data: str
+    result: str
+    slave_ip: str
 
-    try:
-        update_result = await database.execute(update_query, update_values)
-        if update_result == 0:
-            raise HTTPException(status_code=404, detail="Task not found.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+@app.post("/send_results")
+async def send_results_to_client(task_result: TaskResult):
+    num_part, index, num_splits = map(int, task_result.meta_data.replace('!', ' ').replace('$', ' ').split())
+    print(f"TASK_TD: {index}")
+    # update_query = """
+    # UPDATE file_metadata
+    # SET status = :status
+    # WHERE id = :task_id
+    # """
+    # update_values = {"status": 'completed', "task_id": task_id}
+
+    # try:
+    #     update_result = await database.execute(update_query, update_values)
+    #     if update_result == 0:
+    #         raise HTTPException(status_code=404, detail="Task not found.")
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
 
-    fetch_query = "SELECT user_ip FROM file_metadata WHERE id = :task_id"
-    db_result = await database.fetch_one(fetch_query, {"task_id": task_id})
+    # fetch_query = "SELECT user_ip FROM file_metadata WHERE id = :task_id"
+    # db_result = await database.fetch_one(fetch_query, {"task_id": task_id})
 
-    if not db_result:
-        raise HTTPException(status_code=404, detail="Task not found.")
+    # if not db_result:
+    #     raise HTTPException(status_code=404, detail="Task not found.")
 
-    client_ip = db_result["user_ip"]
-    client_url = f"http://{client_ip}:5002/receive_results"
+    # client_ip = db_result["user_ip"]
+    # client_url = f"http://{client_ip}:5002/receive_results"
 
-    # Чтение данных из загруженного файла
-    task_data = await task_result.read()
+    # # Чтение данных из загруженного файла
+    # task_data = await task_result.read()
 
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(client_url, files={"file": task_data})
-            response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+    # async with httpx.AsyncClient() as client:
+    #     try:
+    #         response = await client.post(client_url, files={"file": task_data})
+    #         response.raise_for_status()
+    #     except httpx.HTTPStatusError as e:
+    #         raise HTTPException(status_code=response.status_code, detail=response.text)
+    #     except Exception as e:
+    #         raise HTTPException(status_code=500, detail=str(e))
 
-    return {
-        "message": "Task processed successfully",
-        "task_id": task_id,
-        "client_ip": client_ip
-    }
+    # return {
+    #     "message": "Task processed successfully",
+    #     "task_id": task_id,
+    #     "client_ip": client_ip
+    # }
 
 
 

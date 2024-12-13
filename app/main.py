@@ -10,7 +10,7 @@ import uvicorn
 import socket
 from tasks.task_manager import task_manager
 
-DB_IP = "192.168.3.12:8000"
+DB_IP = "192.168.1.107:8000"
 NAME = socket.gethostname()
 HOST = socket.gethostbyname(NAME)
 

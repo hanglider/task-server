@@ -19,4 +19,4 @@ async def receive_results(files: list[UploadFile] = File(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="192.168.3.12", port=5002)
+    uvicorn.run(app, host="192.168.1.107", port=5002)
