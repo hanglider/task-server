@@ -59,4 +59,3 @@ async def slave_save_uploaded_files(files: List[UploadFile], directory: str) -> 
         finally:
             await file.close()
     return filenames, meta_data
-
