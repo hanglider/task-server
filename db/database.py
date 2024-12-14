@@ -10,10 +10,7 @@ import aiofiles
 import time
 import httpx
 from pydantic import BaseModel
-<<<<<<< HEAD
 import requests
-=======
->>>>>>> database
 
 # Конфигурация
 UPLOAD_FOLDER = "db\storage"
@@ -54,35 +51,55 @@ async def shutdown():
 
 
 @app.post("/upload")
-async def upload_file(request: Request, files: List[UploadFile] = File(...)):
+async def upload_file(request: Request, file1: UploadFile = File(...), file2: UploadFile = File(...)):
     user_ip = request.client.host
-
+    print(file1.filename)
     filenames = []
     count = len(os.listdir(UPLOAD_FOLDER))
     data_name, data_path, task_name, task_path = None, None, None, None
 
-    for file in files:
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="Invalid file name.")
+    # if not file1.filename:
+    #     raise HTTPException(status_code=400, detail="Invalid file name.")
+    f_n = os.path.basename(file1.filename)
+    filename = f"{f_n.split('.')[0]}_{count + 1}.{f_n.split('.')[-1]}"
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    print(filename, filepath)
+    try:
+        async with aiofiles.open(filepath, 'wb') as f:
+            contents = await file1.read()
+            await f.write(contents)
+        if ".py" in filename:
+            task_name, task_path = filename, filepath
+        else:
+            data_name, data_path = filename, filepath
+        filenames.append(filepath)
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+    finally:
+        await file1.close()
 
-        filename = f"{file.filename.split('.')[0]}_{count + 1}.{file.filename.split('.')[-1]}"
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        try:
-            async with aiofiles.open(filepath, 'wb') as f:
-                contents = await file.read()
-                await f.write(contents)
-            if ".py" in filename:
-                task_name, task_path = filename, filepath
-            else:
-                data_name, data_path = filename, filepath
-            filenames.append(filepath)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
-        finally:
-            await file.close()
+    f_n = os.path.basename(file2.filename)
+    filename = f"{f_n.split('.')[0]}_{count + 1}.{f_n.split('.')[-1]}"
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    print(filename, filepath)
+    try:
+        async with aiofiles.open(filepath, 'wb') as f:
+            contents = await file2.read()
+            await f.write(contents)
+        if ".py" in filename:
+            task_name, task_path = filename, filepath
+        else:
+            data_name, data_path = filename, filepath
+        filenames.append(filepath)
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+    finally:
+        await file2.close()
 
-    if not task_name or not task_path or not data_name or not data_path:
-        raise HTTPException(status_code=400, detail="Missing required files.")
+    # if not task_name or not task_path or not data_name or not data_path:
+    #     raise HTTPException(status_code=400, detail="Missing required files.")
 
     query = """
     INSERT INTO file_metadata (task_name, task_path, data_name, data_path, is_downloaded, user_ip)
@@ -102,7 +119,7 @@ async def upload_file(request: Request, files: List[UploadFile] = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    return {"filenames": filenames, "user_ip": user_ip}
+    return {"filenames": "filenames", "user_ip": user_ip}
 
 
 
@@ -159,7 +176,6 @@ async def download_file():
                   "X-Task-ID": str(record_id)}
     )
 
-<<<<<<< HEAD
 class TaskResult(BaseModel):
     task_id: str
     task_result: str
@@ -213,104 +229,6 @@ async def send_results_to_client(task_result: TaskResult):
         "task_id": task_result.task_id,
         "client_ip": client_ip
     }
-=======
-# @app.put("/update_status")
-# async def update_status(task_id: int = Query(..., description="ID of the task to update")):
-
-#     print(f"HUYUHYUHYHYUHYUHYHY{task_id}")
-#     if not task_id:
-#         raise HTTPException(status_code=400, detail="Task ID and status are required.")
-    
-#     # Обновление статуса в базе данных
-#     query = """
-#     UPDATE file_metadata
-#     SET status = :status
-#     WHERE id = :task_id
-#     """
-#     values = {"status": 'completed', "task_id": task_id}
-
-#     try:
-#         result = await database.execute(query, values)
-#         if result == 0:
-#             raise HTTPException(status_code=404, detail="Task not found.")
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
-#     return {"message": "Task status updated successfully", "task_id": task_id}
-
-# @app.post("/send_results")
-# async def send_results_to_client(task_id: int, result_data: dict):
-#     query = "SELECT user_ip FROM file_metadata WHERE id = :task_id"
-#     db_result = await database.fetch_one(query, {"task_id": task_id})
-    
-#     if not db_result:
-#         raise HTTPException(status_code=404, detail="Task not found.")
-    
-#     client_ip = db_result["user_ip"]
-#     client_url = f"http://{client_ip}:5002/receive_results"
-
-#     async with httpx.AsyncClient() as client:
-#         try:
-#             response = await client.post(client_url, json=result_data)
-#             response.raise_for_status()
-#         except httpx.HTTPStatusError as e:
-#             raise HTTPException(status_code=response.status_code, detail=response.text)
-#         except Exception as e:
-#             raise HTTPException(status_code=500, detail=str(e))
-#     return {"message": "Results sent successfully", "client_ip": client_ip}
-
-class TaskResult(BaseModel):
-    meta_data: str
-    result: str
-    slave_ip: str
-
-@app.post("/send_results")
-async def send_results_to_client(task_result: TaskResult):
-    num_part, index, num_splits = map(int, task_result.meta_data.replace('!', ' ').replace('$', ' ').split())
-    print(f"TASK_TD: {index}")
-    # update_query = """
-    # UPDATE file_metadata
-    # SET status = :status
-    # WHERE id = :task_id
-    # """
-    # update_values = {"status": 'completed', "task_id": task_id}
-
-    # try:
-    #     update_result = await database.execute(update_query, update_values)
-    #     if update_result == 0:
-    #         raise HTTPException(status_code=404, detail="Task not found.")
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
-
-    # fetch_query = "SELECT user_ip FROM file_metadata WHERE id = :task_id"
-    # db_result = await database.fetch_one(fetch_query, {"task_id": task_id})
-
-    # if not db_result:
-    #     raise HTTPException(status_code=404, detail="Task not found.")
-
-    # client_ip = db_result["user_ip"]
-    # client_url = f"http://{client_ip}:5002/receive_results"
-
-    # # Чтение данных из загруженного файла
-    # task_data = await task_result.read()
-
-    # async with httpx.AsyncClient() as client:
-    #     try:
-    #         response = await client.post(client_url, files={"file": task_data})
-    #         response.raise_for_status()
-    #     except httpx.HTTPStatusError as e:
-    #         raise HTTPException(status_code=response.status_code, detail=response.text)
-    #     except Exception as e:
-    #         raise HTTPException(status_code=500, detail=str(e))
-
-    # return {
-    #     "message": "Task processed successfully",
-    #     "task_id": task_id,
-    #     "client_ip": client_ip
-    # }
-
->>>>>>> database
 
 
 def send_ip_to_server(host, port):
@@ -341,5 +259,5 @@ if __name__ == "__main__":
     name = socket.gethostname()
     host = socket.gethostbyname(name)
     port = 8000
-    send_ip_to_server(host, port)
+    # send_ip_to_server(host, port)
     uvicorn.run(app, host=host, port=port)
