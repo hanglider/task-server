@@ -134,7 +134,7 @@ def send_ip_to_server(host, port):
     
     try:
         # Отправляем запрос на сервер
-        response = requests.post(f"http://{DB_IP}/add_ip", json=data)
+        response = requests.post(f"http://172.20.10.7:8001/add_ip", json=data)
         
         # Проверяем статус код ответа
         if response.status_code == 200:

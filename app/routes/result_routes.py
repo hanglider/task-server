@@ -12,7 +12,7 @@ import aiohttp
 
 router = APIRouter()
 
-DB_IP = "192.168.1.107:8000"
+DB_IP = "172.20.10.7:8000"
 
 class TaskResult(BaseModel):
     meta_data: str
