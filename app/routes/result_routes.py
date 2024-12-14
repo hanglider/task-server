@@ -3,10 +3,12 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from tasks.task_manager import task_manager
 from tasks.task_processing import distribute_files_to_slaves
+import asyncio
 import aiofiles
 import os
 import httpx
 import aiohttp
+
 
 router = APIRouter()
 
@@ -35,17 +37,17 @@ async def task_completed(task_result: TaskResult):
     if is_filled:
         print(f"\033[34mTask with index {index} has been fully completed!\033[0m")
 
-        return RedirectResponse(f"http://{DB_IP}/send_results")
-        # async with aiohttp.ClientSession() as session:
-        #     payload = {
-        #         "task_id": str(index),
-        #         "task_result": str(task_manager.results[index]),
-        #     }
-        #     async with session.post(f"http://{DB_IP}/send_results", json=payload) as response: ----------------working
-        #         if response.status == 200:
-        #             return await response.json()
-        #         else:
-        #             return {"error": f"Failed to notify server: {response.status}"}
+        # return RedirectResponse(f"http://{DB_IP}/send_results")
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "task_id": str(index),
+                "task_result": str(task_manager.results[index]),
+            }
+            async with session.post(f"http://{DB_IP}/send_results", json=payload) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    return {"error": f"Failed to notify server: {response.status}"}
     
         # async with aiofiles.open(f"app/results/result{index}.txt", 'w') as f:
         #     await f.write(str(task_manager.results[index]))

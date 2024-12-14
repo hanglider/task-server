@@ -39,16 +39,15 @@ async def send_heartbeat(server_url: str, interval: int = 15):
 
 
 async def scan_for_main():
-    while True:
-        await asyncio.sleep(1)
-        data = await asyncio.create_task(get_ips(main_routes.HOSTS_DB))
-        
-        # Проверка, найден ли 'db' в данных
-        for ip, info in data.items():
-            if info.get("label") == 'main':
-                main_ip = ip
-                print(f"Slave IP найден: {main_ip}")
-                return main_ip  # Возвращаем IP и выходим из цикла
+    await asyncio.sleep(1)
+    data = await asyncio.create_task(get_ips(main_routes.HOSTS_DB))
+    
+    # Проверка, найден ли 'db' в данных
+    for ip, info in data.items():
+        if info.get("label") == 'main':
+            main_ip = ip
+            print(f"Slave IP найден: {main_ip}")
+            return main_ip  # Возвращаем IP и выходим из цикла
 
 async def notify_main_server(meta_data: str, result: str):
     """
@@ -73,7 +72,7 @@ async def notify_main_server(meta_data: str, result: str):
                 "result": result,
                 "slave_ip": slave_ip
             }
-            async with session.post(main_ip, json=payload) as response:
+            async with session.post(f"http://{main_ip}/task_completed", json=payload) as response:
                 if response.status == 200:
                     return await response.json()
                 else:
