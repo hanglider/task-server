@@ -3,18 +3,16 @@ import aiohttp
 from fastapi import APIRouter
 from tasks.task_manager import task_manager
 from utils.file_utils import extract_zip_with_index
-from tasks.task_processing import distribute_files_to_slaves
 import os
-from typing import List
 import importlib
 from pathlib import Path
 import httpx
 from tasks.task_manager import TaskManager
 
-HOSTS_DB = "192.168.1.107:8001"
+HOSTS_DB = "192.168.3.12:8001"
 
 router = APIRouter()
-######
+
 from pydantic import BaseModel
 
 class HeartbeatRequest(BaseModel):
@@ -26,9 +24,8 @@ async def heartbeat(request: HeartbeatRequest):
     if slave_ip not in task_manager.available_hosts:
         task_manager.available_hosts.append(slave_ip)
     return {"message": "Heartbeat received"}
-######
 
-processed_files = set()  # Хранение обработанных файлов
+processed_files = set()  
 
 async def download_and_process_files(task_manager: TaskManager, db_ip):
     if len(task_manager.available_hosts) == 0:
@@ -45,26 +42,21 @@ async def download_and_process_files(task_manager: TaskManager, db_ip):
         zip_path = "app/incoming/temp.zip"
         with open(zip_path, "wb") as f:
             f.write(response.content)
-        
-        # TODO в этом месте ты должен вытащить id записи в бд из респонса
-        # task_manager.main_file_index заменить на id
 
         id = response.headers.get("X-Task-ID")
 
         await extract_zip_with_index(zip_path, "app/incoming", id)
         os.remove(zip_path)
 
-        # Обработка файлов
         filenames = os.listdir("app/incoming")
         for filename in filenames:
-            if 'task' in filename and filename not in processed_files:  # Проверка на уже обработанный файл
-                processed_files.add(filename)  # Отмечаем файл как обработанный
+            if 'task' in filename and filename not in processed_files: 
+                processed_files.add(filename) 
                 module_name = filename.split(".")[0]
                 task_module = importlib.import_module(f'incoming.{module_name}')
                 data_filepath = f"app/incoming/data{id}.jpg"
                 task_module.cut_jpg(data_filepath, r"", id)
 
-                # Добавление частей в очередь
                 folder_path = Path('app/incoming')
                 for file in folder_path.iterdir():
                     if 'part' in file.name and str(id) in file.name.split("!")[1][0]:

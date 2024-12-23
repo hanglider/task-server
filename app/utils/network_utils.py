@@ -6,7 +6,7 @@ from routes import main_routes
 import asyncio
 
 
-DB_IP = "192.168.1.107:8001"
+DB_IP = "192.168.3.12.54:8001"
 
 
 async def new_main():
@@ -118,7 +118,6 @@ async def get_ips(server_url: str):
             async with session.get(url) as response:
                 if response.status == 200:
                     result = await response.json()
-                    # print(f"Список IP-адресов: {result['ips']}")
                     return result['ips']
                 else:
                     print(f"Ошибка {response.status}: Не удалось получить список IP-адресов")
@@ -126,20 +125,15 @@ async def get_ips(server_url: str):
             print(f"Ошибка соединения: {e}")
 
 def send_ip_to_server(host, port):
-    # Получаем свой IP-адрес
-
-    # Данные для отправки
     client_ip = f"{host}:{port}"
     data = {"ip": client_ip}
     
     try:
-        # Отправляем запрос на сервер
-        response = requests.post(f"http://{DB_IP}/add_ip", json=data)
-        
-        # Проверяем статус код ответа
+        response = requests.post(f"http://192.168.3.12:8001/add_ip", json=data)
+
         if response.status_code == 200:
             print(f"IP {client_ip} успешно отправлен на сервер.")
-            return response.json()  # Возвращаем ответ от сервера
+            return response.json() 
         else:
             print(f"Ошибка при отправке IP: {response.status_code} - {response.text}")
             return None

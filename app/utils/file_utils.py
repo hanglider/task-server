@@ -5,22 +5,6 @@ from typing import List
 from urllib.parse import unquote
 import os
 
-# async def main_save_uploaded_files(files: List[UploadFile], directory: str, index: int = 0) -> List[str]:
-#     filenames = []
-#     for file in files:
-#         try:
-#             filename = f"{file.filename.split('.')[0]}{index}.{file.filename.split('.')[-1]}"
-#             filepath = f"app/{directory}/{filename}"
-#             async with aiofiles.open(filepath, 'wb') as f:
-#                 contents = await file.read()
-#                 await f.write(contents)
-#             filenames.append(filepath)
-#         except Exception as e:
-#             raise HTTPException(status_code=500, detail=f"Error saving file {file.filename}: {str(e)}")
-#         finally:
-#             await file.close()
-#     return filenames
-
 async def extract_zip_with_index(zip_path, extract_to, main_file_index):
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         for file_info in zip_ref.infolist():

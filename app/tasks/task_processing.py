@@ -88,13 +88,13 @@ async def distribute_files_to_slaves():
     form_data.add_field(
         'files', 
         open(task_file, 'rb'), 
-        filename=os.path.basename(task_file),  # Используем только имя файла
+        filename=os.path.basename(task_file), 
         content_type='application/octet-stream'
     )
     form_data.add_field(
         'files', 
         open(data_file, 'rb'), 
-        filename=os.path.basename(data_file),  # Используем только имя файла
+        filename=os.path.basename(data_file), 
         content_type='application/octet-stream'
     )
 
@@ -112,11 +112,11 @@ async def process_task(dir: str = "incoming", meta_data: str = "error"):
         filepath = os.path.join(f"app\{dir}", filename)
         if os.path.isfile(filepath):
             if "part" in filepath:
-                processor.add_task(task.main, task.load_image(filepath, 1)[0]) #TODO: figure out which part of the image we need to process
+                processor.add_task(task.main, task.load_image(filepath, 1)[0]) 
 
     try:
         results = await processor.run_all_tasks()
         for i, result in enumerate(results):
-            await notify_main_server(meta_data, f"{result}")  #TODO: somehow get main_server_url from outside 
+            await notify_main_server(meta_data, f"{result}")
     except TimeoutError as e:
         print("Error processing tasks:", e)

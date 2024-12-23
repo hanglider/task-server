@@ -1,6 +1,5 @@
 import asyncio
 from contextlib import asynccontextmanager
-import requests
 import uvicorn
 from fastapi import FastAPI
 from routes import main_routes, slave_routes, result_routes
@@ -19,8 +18,6 @@ async def lifespan(app: FastAPI):
     # Инициализация при запуске приложения
     print("Инициализация приложения...")
     asyncio.create_task(start_task_manager())
-
-    # TODO: отправление своего ip в бд
     
     print("Приложение готово к работе")
     yield
@@ -31,12 +28,10 @@ async def scan_for_slaves():
         await asyncio.sleep(1)
         data = await asyncio.create_task(network_utils.get_ips(main_routes.HOSTS_DB))
         
-        # Проверка, найден ли 'db' в данных
         slave_ips = [ip for ip, info in data.items() if info.get("label") == 'slave']
         
-        if slave_ips:  # Если нашли хотя бы один IP
-            return slave_ips  # Возвращаем список всех IPдим из цикла
-        # print("Slave не найден, повторная попытка через 1 секунду...")
+        if slave_ips:
+            return slave_ips
 
 async def start_task_manager():
     if label == "main":
@@ -51,7 +46,7 @@ async def start_task_manager():
                 break
         print("start")
         while True:
-            await asyncio.sleep(1)  # Интервал для запуска задач
+            await asyncio.sleep(1)
             slave_ips = await scan_for_slaves()
             task_manager.available_hosts = list(set(task_manager.available_hosts) | set(slave_ips))
             await main_routes.download_and_process_files(task_manager, db_ip)
@@ -59,7 +54,6 @@ async def start_task_manager():
 
 app = FastAPI(lifespan=lifespan)
 
-# Подключение маршрутов
 app.include_router(main_routes.router)
 app.include_router(slave_routes.router)
 app.include_router(result_routes.router)
@@ -70,5 +64,5 @@ if __name__ == "__main__":
     port = 5000
     main_routes.set_port(port, host)
     result = network_utils.send_ip_to_server(host, port)
-    label = result['label'] #если возникает ошибка с этой хуйнёй, то просто удали client_ips.json
+    label = result['label']
     uvicorn.run(app, host=host, port=port)
